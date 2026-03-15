@@ -34,7 +34,6 @@ def build_summoner_list(config: dict) -> list[SummonerConfig]:
 class LeagueSpyBot(commands.Bot):
     def __init__(self, config: dict):
         intents = discord.Intents.default()
-        intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
 
         self.config = config
@@ -66,8 +65,11 @@ class LeagueSpyBot(commands.Bot):
         logger.info("Checking for new matches...")
         channel = self.get_channel(self.channel_id)
         if channel is None:
-            logger.error("Channel %d not found", self.channel_id)
-            return
+            try:
+                channel = await self.fetch_channel(self.channel_id)
+            except Exception as e:
+                logger.error("Channel %d not found: %s", self.channel_id, e)
+                return
 
         for summoner in self.summoners:
             try:

@@ -1,40 +1,68 @@
+<div align="center">
+
 # LeagueSpy
 
-Discord bot that scrapes [op.gg](https://op.gg) for League of Legends match history and announces new games in a Discord channel. Track multiple players and their smurf accounts from a single config file.
+<p align="center"><b>Track your friends' League matches. Roast their losses.</b></p>
+
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=for-the-badge)](https://www.python.org/downloads/)
+[![Oracle Database](https://img.shields.io/badge/Oracle-Database_Free-red.svg?style=for-the-badge)](https://www.oracle.com/database/free/)
+[![discord.py](https://img.shields.io/badge/discord.py-2.7+-5865F2.svg?style=for-the-badge)](https://discordpy.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-37_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+
+</div>
+
+Discord bot that scrapes [op.gg](https://op.gg) for League of Legends match history and announces new games in your server. Track multiple players and all their smurf accounts from a single config file.
+
+![LeagueSpy Architecture](assets/visual-explainer-hero.png)
 
 ## Features
 
-- Scrapes op.gg match history using headless browser (scrapling)
-- Posts rich Discord embeds with champion, KDA, win/loss, game mode, and duration
-- Tracks multiple players with multiple summoner accounts each
-- Oracle Database storage for match history and deduplication
-- Configurable polling interval (default: 5 minutes)
-- Per-summoner region support (EUW, NA, KR, etc.)
+- **op.gg scraping** with headless browser stealth (scrapling's StealthyFetcher)
+- **Rich Discord embeds** with champion, KDA, win/loss, game mode, and duration
+- **Multi-account tracking** for players with multiple summoner accounts
+- **Oracle Database** storage for match history and deduplication
+- **Configurable polling** interval (default: 5 minutes)
+- **Per-summoner region** support (EUW, NA, KR, etc.)
 
-## Prerequisites
+## Discord Embed Preview
+
+![Discord Embeds](assets/slides-embeds.png)
+
+Green sidebar for wins. Red for losses. Each embed links to the player's op.gg profile.
+
+## Setup
+
+<!-- one-command-install -->
+> **One-command install** -- clone, configure, and run in a single step:
+>
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
+> ```
+>
+> <details><summary>Advanced options</summary>
+>
+> Override install location:
+> ```bash
+> PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
+> ```
+>
+> Or install manually:
+> ```bash
+> git clone https://github.com/jasperan/LeagueSpy.git
+> cd LeagueSpy
+> # See below for setup instructions
+> ```
+> </details>
+
+### Prerequisites
 
 - Python 3.12+
 - [Conda](https://docs.conda.io/) (recommended) or virtualenv
 - Oracle Database (Free tier works fine)
 - Discord bot token ([create one here](https://discord.com/developers/applications))
 
-## Quick Start
-
-### Option A: Install Script
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
-```
-
-Or clone first, then run:
-
-```bash
-git clone https://github.com/jasperan/LeagueSpy.git
-cd LeagueSpy
-bash install.sh --local
-```
-
-### Option B: Manual Setup
+### Manual Setup
 
 1. **Clone and create environment**
 
@@ -52,27 +80,19 @@ pip install -r requirements.txt
 scrapling install
 ```
 
-If that fails, try:
-
-```python
-python -c "from scrapling.fetchers import StealthyFetcher; StealthyFetcher.install()"
-```
-
 3. **Set up Oracle Database**
 
-Create the `leaguespy` user in your Oracle instance, then run the schema script:
+Create the `leaguespy` user in your Oracle instance, then run the schema:
 
 ```bash
 sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/setup_db.sql
 ```
 
-Or skip this step entirely. The bot creates tables automatically on first run.
-
 4. **Configure**
 
 ```bash
 cp config.example.yaml config.yaml
-# Edit config.yaml with your values
+# Edit config.yaml with your Discord bot token, channel ID, and summoner list
 ```
 
 5. **Run**
@@ -109,7 +129,7 @@ Enable Developer Mode in Discord settings to copy channel IDs.
 
 ## Adding Players and Smurfs
 
-Add new players under the `players` list. Each player can have multiple summoner accounts:
+Each player can have multiple summoner accounts:
 
 ```yaml
 players:
@@ -127,6 +147,12 @@ players:
 
 The `slug` is the URL-safe summoner identifier from op.gg. Go to `op.gg/summoners/{region}/{slug}` to find yours.
 
+## How It Works
+
+![Pipeline Flow](assets/slides-flow.png)
+
+Every 5 minutes, the bot scrapes each tracked summoner's op.gg profile. New match IDs get stored in Oracle DB and announced via Discord embed. Already-seen matches are skipped.
+
 ## Project Structure
 
 ```
@@ -138,7 +164,10 @@ src/
   models.py     # Data models (SummonerConfig, MatchResult)
 scripts/
   setup_db.sql  # Oracle schema (sequences + tables)
-tests/          # Unit and integration tests
+tests/          # 37 unit and integration tests
+assets/
+  visual-explainer.html  # Interactive architecture diagram
+  slides.html            # Presentation deck
 ```
 
 ## Running Tests
