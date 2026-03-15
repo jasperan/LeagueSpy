@@ -1,0 +1,26 @@
+discord:
+  token: "YOUR_DISCORD_BOT_TOKEN"
+  channel_id: 0  # Right-click channel -> Copy ID (enable Developer Mode in Discord settings)
+
+oracle:
+  user: "leaguespy"
+  password: "leaguespy"
+  dsn: "localhost:1530/FREEPDB1"
+
+scraping:
+  interval_minutes: 5
+  region: "euw"  # default region, can be overridden per summoner
+
+players:
+  - name: "jasper"
+    summoners:
+      - slug: "jasper-1971"
+        region: "euw"
+      # Add smurfs here:
+      # - slug: "smurf-account-1234"
+      #   region: "euw"
+  # Add more players:
+  # - name: "friend1"
+  #   summoners:
+  #     - slug: "friend1-tag"
+  #       region: "euw"

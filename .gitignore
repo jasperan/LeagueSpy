@@ -1,0 +1,16 @@
+config.yaml
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+dist/
+build/
+bot.log
+.agents/
+.claude/
+.crush/
+.openhands/
+.serena/
+docs/plans/
+.playwright-mcp/
+venv/
