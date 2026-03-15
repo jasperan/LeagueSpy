@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import time
 import yaml
 import discord
 from discord.ext import commands, tasks
@@ -39,7 +41,7 @@ class LeagueSpyBot(commands.Bot):
         self.config = config
         self.channel_id = config["discord"]["channel_id"]
         self.summoners = build_summoner_list(config)
-        self.scraper = OpGGScraper(delay_between_requests=2.0)
+        self.scraper = OpGGScraper()
         self.db = Database(
             user=config["oracle"]["user"],
             password=config["oracle"]["password"],
@@ -62,7 +64,8 @@ class LeagueSpyBot(commands.Bot):
 
     @tasks.loop(minutes=5)
     async def check_matches(self):
-        logger.info("Checking for new matches...")
+        t0 = time.monotonic()
+        logger.info("Checking for new matches across %d summoner(s)...", len(self.summoners))
         channel = self.get_channel(self.channel_id)
         if channel is None:
             try:
@@ -71,11 +74,28 @@ class LeagueSpyBot(commands.Bot):
                 logger.error("Channel %d not found: %s", self.channel_id, e)
                 return
 
-        for summoner in self.summoners:
-            try:
-                matches = await self.scraper.fetch_matches(summoner)
-                db_id = self.summoner_db_ids[summoner.slug]
+        # Scrape all summoners in parallel (3 concurrent browsers)
+        sem = asyncio.Semaphore(3)
 
+        async def scrape_one(summoner):
+            async with sem:
+                return summoner, await self.scraper.fetch_matches(summoner)
+
+        tasks_list = [scrape_one(s) for s in self.summoners]
+        results = await asyncio.gather(*tasks_list, return_exceptions=True)
+
+        scrape_time = time.monotonic() - t0
+        logger.info("Scraping done in %.1fs, announcing new matches...", scrape_time)
+
+        # Announce sequentially (preserves order in Discord)
+        total_new = 0
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error("Scrape failed: %s", result)
+                continue
+            summoner, matches = result
+            try:
+                db_id = self.summoner_db_ids[summoner.slug]
                 new_count = 0
                 for match in matches:
                     if not self.db.is_match_known(db_id, match.match_id):
@@ -87,8 +107,14 @@ class LeagueSpyBot(commands.Bot):
 
                 if new_count > 0:
                     logger.info("Announced %d new match(es) for %s", new_count, summoner.slug)
+                else:
+                    logger.info("No new matches for %s (%d known)", summoner.slug, len(matches))
+                total_new += new_count
             except Exception as e:
-                logger.error("Error checking %s: %s", summoner.slug, e)
+                logger.error("Error announcing %s: %s", summoner.slug, e)
+
+        elapsed = time.monotonic() - t0
+        logger.info("Cycle complete: %d new match(es) total in %.1fs", total_new, elapsed)
 
     @check_matches.before_loop
     async def before_check(self):
