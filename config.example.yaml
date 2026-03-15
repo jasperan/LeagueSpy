@@ -5,7 +5,7 @@ discord:
 oracle:
   user: "leaguespy"
   password: "leaguespy"
-  dsn: "localhost:1530/FREEPDB1"
+  dsn: "localhost:1523/FREEPDB1"
 
 scraping:
   interval_minutes: 5
