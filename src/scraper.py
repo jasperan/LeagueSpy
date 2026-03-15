@@ -183,11 +183,18 @@ class OpGGScraper:
         return matches
 
     async def fetch_matches(self, summoner: SummonerConfig) -> List[MatchResult]:
-        """Fetch and parse matches for a single summoner."""
+        """Fetch and parse matches for a single summoner.
+
+        Returns matches in chronological order (oldest first) so that
+        when announced sequentially, the freshest game appears last
+        (at the bottom of the Discord channel).
+        """
         page = await self.fetch_page(summoner)
         if page is None:
             return []
-        return self.parse_matches(page, summoner)
+        matches = self.parse_matches(page, summoner)
+        matches.reverse()
+        return matches
 
     async def fetch_all(self, summoners: List[SummonerConfig]) -> dict[str, List[MatchResult]]:
         """Fetch matches for all summoners with a delay between requests."""

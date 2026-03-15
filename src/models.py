@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from urllib.parse import quote
 
 
 @dataclass
@@ -9,7 +10,7 @@ class SummonerConfig:
 
     @property
     def op_gg_url(self) -> str:
-        return f"https://op.gg/lol/summoners/{self.region}/{self.slug}"
+        return f"https://op.gg/lol/summoners/{self.region}/{quote(self.slug, safe='-')}"
 
 
 @dataclass
