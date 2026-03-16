@@ -68,5 +68,31 @@ class Database:
             )
             self.conn.commit()
 
+    def get_matches_since(self, since_timestamp: str) -> list[dict]:
+        """Return all matches inserted after *since_timestamp*.
+
+        Parameters
+        ----------
+        since_timestamp:
+            Format ``"YYYY-MM-DD HH24:MI:SS"`` (Oracle TO_TIMESTAMP format).
+        """
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, s.summoner_slug, s.region,
+                          m.match_id, m.champion, m.win, m.kills, m.deaths,
+                          m.assists, m.game_duration, m.game_mode, m.played_at
+                   FROM matches m
+                   JOIN summoners s ON s.id = m.summoner_id
+                   WHERE m.created_at >= TO_TIMESTAMP(:ts, 'YYYY-MM-DD HH24:MI:SS')
+                   ORDER BY s.player_name, m.created_at""",
+                {"ts": since_timestamp},
+            )
+            columns = [
+                "summoner_id", "player_name", "summoner_slug", "region",
+                "match_id", "champion", "win", "kills", "deaths",
+                "assists", "game_duration", "game_mode", "played_at",
+            ]
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+
     def close(self):
         self.conn.close()

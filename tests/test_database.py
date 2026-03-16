@@ -59,3 +59,18 @@ def test_insert_match(mock_db):
     )
     db.insert_match(1, match)
     cursor.execute.assert_called_once()
+
+
+def test_get_matches_since(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        (1, "jasper", "jasper-1971", "euw", "EUW1-100", "Jinx", 1, 8, 2, 5, "32:15", "Ranked Solo", "2026-03-16 10:00 UTC"),
+        (1, "jasper", "jasper-1971", "euw", "EUW1-101", "Lux", 0, 2, 7, 3, "28:10", "Normal", "2026-03-16 11:00 UTC"),
+    ]
+    results = db.get_matches_since("2026-03-16 08:00:00")
+    cursor.execute.assert_called_once()
+    assert len(results) == 2
+    assert results[0]["player_name"] == "jasper"
+    assert results[0]["champion"] == "Jinx"
+    assert results[0]["win"] == 1
+    assert results[1]["win"] == 0
