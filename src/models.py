@@ -9,8 +9,8 @@ class SummonerConfig:
     region: str
 
     @property
-    def op_gg_url(self) -> str:
-        return f"https://op.gg/lol/summoners/{self.region}/{quote(self.slug, safe='-')}"
+    def profile_url(self) -> str:
+        return f"https://www.leagueofgraphs.com/summoner/{self.region}/{quote(self.slug, safe='-')}"
 
 
 @dataclass

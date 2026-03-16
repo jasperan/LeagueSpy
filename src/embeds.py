@@ -14,7 +14,7 @@ def build_match_embed(summoner: SummonerConfig, match: MatchResult) -> discord.E
 
     embed = discord.Embed(
         title=f"{emoji} {title}",
-        url=summoner.op_gg_url,
+        url=summoner.profile_url,
         colour=color,
     )
 

@@ -5,7 +5,7 @@ import yaml
 import discord
 from discord.ext import commands, tasks
 from src.database import Database
-from src.scraper import OpGGScraper
+from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_embed
 from src.models import SummonerConfig
 
@@ -41,7 +41,7 @@ class LeagueSpyBot(commands.Bot):
         self.config = config
         self.channel_id = config["discord"]["channel_id"]
         self.summoners = build_summoner_list(config)
-        self.scraper = OpGGScraper()
+        self.scraper = LeagueOfGraphsScraper(max_concurrent=3)
         self.db = Database(
             user=config["oracle"]["user"],
             password=config["oracle"]["password"],
@@ -57,6 +57,7 @@ class LeagueSpyBot(commands.Bot):
     async def on_ready(self):
         logger.info("LeagueSpy bot logged in as %s", self.user)
         logger.info("Tracking %d summoner(s)", len(self.summoners))
+        await self.scraper.start()
         if not self.check_matches.is_running():
             interval = self.config.get("scraping", {}).get("interval_minutes", 5)
             self.check_matches.change_interval(minutes=interval)
@@ -74,12 +75,9 @@ class LeagueSpyBot(commands.Bot):
                 logger.error("Channel %d not found: %s", self.channel_id, e)
                 return
 
-        # Scrape all summoners in parallel (3 concurrent browsers)
-        sem = asyncio.Semaphore(3)
-
+        # Scrape all summoners in parallel (concurrency limited inside scraper)
         async def scrape_one(summoner):
-            async with sem:
-                return summoner, await self.scraper.fetch_matches(summoner)
+            return summoner, await self.scraper.fetch_matches(summoner)
 
         tasks_list = [scrape_one(s) for s in self.summoners]
         results = await asyncio.gather(*tasks_list, return_exceptions=True)
@@ -121,6 +119,7 @@ class LeagueSpyBot(commands.Bot):
         await self.wait_until_ready()
 
     async def close(self):
+        await self.scraper.stop()
         self.db.close()
         await super().close()
 
