@@ -40,7 +40,9 @@ def normalize_champion_name(display_name: str) -> str:
     if display_name in _SPECIAL_CASES:
         return _SPECIAL_CASES[display_name]
 
-    # Lowercase the character after each apostrophe, then strip apostrophes
+    # DDragon lowercases the letter immediately following an apostrophe in all
+    # current champion keys (e.g. Kha'Zix -> Khazix, Vel'Koz -> Velkoz).
+    # If Riot ever deviates from this, add the champion to _SPECIAL_CASES.
     name = re.sub(r"'(\w)", lambda m: m.group(1).lower(), display_name)
     name = name.replace(" ", "")
     return name
