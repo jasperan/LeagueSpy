@@ -38,3 +38,38 @@ def test_build_loss_embed():
     embed = build_match_embed(summoner, match)
     assert embed.colour == discord.Colour.red()
     assert "DEFEAT" in embed.title
+
+
+def test_embed_has_champion_thumbnail():
+    summoner = SummonerConfig(player_name="jasper", slug="jasper-1971", region="euw")
+    match = MatchResult(
+        match_id="EUW1-123",
+        champion="Jinx",
+        win=True,
+        kills=8,
+        deaths=2,
+        assists=5,
+        game_duration="32:15",
+        game_mode="Ranked Solo",
+        played_at="2026-03-15 14:32",
+    )
+    embed = build_match_embed(summoner, match)
+    assert embed.thumbnail is not None
+    assert "Jinx" in embed.thumbnail.url
+
+
+def test_embed_thumbnail_normalizes_champion_name():
+    summoner = SummonerConfig(player_name="jasper", slug="jasper-1971", region="euw")
+    match = MatchResult(
+        match_id="EUW1-789",
+        champion="Lee Sin",
+        win=False,
+        kills=3,
+        deaths=5,
+        assists=7,
+        game_duration="28:00",
+        game_mode="Normal",
+        played_at="2026-03-15 16:00",
+    )
+    embed = build_match_embed(summoner, match)
+    assert "LeeSin" in embed.thumbnail.url
