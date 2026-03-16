@@ -1,5 +1,5 @@
 import discord
-from src.embeds import build_match_embed
+from src.embeds import build_match_announcement, build_match_embed
 from src.models import MatchResult, SummonerConfig
 
 
@@ -73,3 +73,47 @@ def test_embed_thumbnail_normalizes_champion_name():
     )
     embed = build_match_embed(summoner, match)
     assert "LeeSin" in embed.thumbnail.url
+
+
+def test_build_match_announcement_without_commentary_uses_embed_only():
+    summoner = SummonerConfig(player_name="jasper", slug="jasper-1971", region="euw")
+    match = MatchResult(
+        match_id="EUW1-123",
+        champion="Jinx",
+        win=True,
+        kills=8,
+        deaths=2,
+        assists=5,
+        game_duration="32:15",
+        game_mode="Ranked Solo",
+        played_at="2026-03-15 14:32",
+    )
+
+    payload = build_match_announcement(summoner, match)
+
+    assert "content" not in payload
+    assert isinstance(payload["embed"], discord.Embed)
+
+
+def test_build_match_announcement_with_commentary_includes_content_and_embed():
+    summoner = SummonerConfig(player_name="jasper", slug="jasper-1971", region="euw")
+    match = MatchResult(
+        match_id="EUW1-123",
+        champion="Jinx",
+        win=True,
+        kills=8,
+        deaths=2,
+        assists=5,
+        game_duration="32:15",
+        game_mode="Ranked Solo",
+        played_at="2026-03-15 14:32",
+    )
+
+    payload = build_match_announcement(
+        summoner,
+        match,
+        commentary="Menuda exhibición, colega.",
+    )
+
+    assert payload["content"] == "Menuda exhibición, colega."
+    assert isinstance(payload["embed"], discord.Embed)

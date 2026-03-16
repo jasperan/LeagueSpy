@@ -3,6 +3,17 @@ from src.champion_icons import get_icon_url
 from src.models import MatchResult, SummonerConfig
 
 
+def build_match_announcement(
+    summoner: SummonerConfig,
+    match: MatchResult,
+    commentary: str | None = None,
+) -> dict:
+    payload = {"embed": build_match_embed(summoner, match)}
+    if commentary:
+        payload["content"] = commentary
+    return payload
+
+
 def build_match_embed(summoner: SummonerConfig, match: MatchResult) -> discord.Embed:
     if match.win:
         color = discord.Colour.green()

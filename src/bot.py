@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 from discord.ext import commands, tasks
 from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
-from src.embeds import build_match_embed
+from src.embeds import build_match_announcement
+from src.commentary import build_commentary
 from src.daily_summary import group_by_player, build_summary_gif
 from src.models import SummonerConfig
 
@@ -117,8 +118,9 @@ class LeagueSpyBot(commands.Bot):
                 new_count = 0
                 for match in matches:
                     if not self.db.is_match_known(db_id, match.match_id):
-                        embed = build_match_embed(summoner, match)
-                        await channel.send(embed=embed)
+                        commentary = await build_commentary(summoner, match)
+                        payload = build_match_announcement(summoner, match, commentary)
+                        await channel.send(**payload)
                         self.db.insert_match(db_id, match)
                         self.db.mark_announced(db_id, match.match_id)
                         new_count += 1

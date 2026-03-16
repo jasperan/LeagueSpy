@@ -2,7 +2,7 @@
 
 # LeagueSpy
 
-<p align="center"><b>Track your friends' League matches. Roast their losses.</b></p>
+<p align="center"><b>Track your friends' League matches. Roast their disasters. Hype their pop-off wins.</b></p>
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=for-the-badge)](https://www.python.org/downloads/)
 [![Oracle Database](https://img.shields.io/badge/Oracle-Database_Free-red.svg?style=for-the-badge)](https://www.oracle.com/database/free/)
@@ -10,7 +10,7 @@
 [![Playwright](https://img.shields.io/badge/Playwright-stealth-2EAD33.svg?style=for-the-badge)](https://playwright.dev/)
 [![Pillow](https://img.shields.io/badge/Pillow-GIF_rendering-ff6f00.svg?style=for-the-badge)](https://python-pillow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-87_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-99_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
 
 </div>
 
@@ -24,7 +24,7 @@ Discord bot that scrapes [leagueofgraphs.com](https://www.leagueofgraphs.com) fo
 curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
 ```
 
-That clones the repo, creates a conda env, and installs everything. You'll just need to fill in `config.yaml` and set up Oracle DB.
+That clones the repo, creates a conda env, and installs everything. You'll just need to fill in `config.yaml`, set up Oracle DB, and pull the local Ollama model if you want the commentary feature.
 
 <details><summary>Override install location</summary>
 
@@ -39,6 +39,7 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 - **Stealth scraping** via Playwright with bot-detection evasion (spoofed navigator, cookie consent handling, concurrent tab pool)
 - **Champion icon thumbnails** on every match embed, pulled from Riot's [Data Dragon CDN](https://developer.riotgames.com/docs/lol#data-dragon)
 - **Rich Discord embeds** with champion, KDA, win/loss, game mode, duration, and profile link
+- **Spanish roast/praise commentary** for extreme matches, generated locally with Ollama + `qwen3.5:9b` and posted above the embed
 - **8-hour summary GIF** sent at 00:00, 08:00, and 16:00 Madrid time. Per-player animated cards showing net W/L, record, and champion icons played
 - **Multi-account tracking** for players with multiple summoner accounts (smurfs)
 - **Oracle Database** storage for match history and deduplication
@@ -55,6 +56,7 @@ Green sidebar for wins. Red for losses. Each embed shows the champion icon and l
 
 - Python 3.12+
 - [Conda](https://docs.conda.io/) (recommended) or virtualenv
+- [Ollama](https://ollama.com/) running locally for the commentary feature
 - Oracle Database (Free tier works fine)
 - Discord bot token ([create one here](https://discord.com/developers/applications))
 
@@ -69,7 +71,10 @@ conda create -n leaguespy python=3.12 -y
 conda activate leaguespy
 pip install -r requirements.txt
 playwright install chromium
+ollama pull qwen3.5:9b
 ```
+
+If Ollama is not already running on your machine, start it before launching the bot.
 
 **2. Set up Oracle Database**
 
@@ -141,7 +146,7 @@ The `slug` is the URL-safe summoner identifier from leagueofgraphs. Go to `leagu
 
 ![Pipeline Flow](assets/slides-flow.png)
 
-**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. Already-seen matches are skipped.
+**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. If a loss is brutal enough, or a win is cracked enough, LeagueSpy also asks local `qwen3.5:9b` for a short Spanish roast or hype line and posts that above the embed. Already-seen matches are skipped.
 
 **Summary GIF:** Three times a day (00:00, 08:00, 16:00 Madrid time), the bot queries all matches from the last 8 hours, groups them by player, renders a Pillow frame per player (dark Discord theme, champion icons, W/L record, net +/- badge), and sends the animated GIF to the channel. Players with zero matches in the window are skipped.
 
@@ -153,12 +158,13 @@ src/
   scraper.py         # leagueofgraphs scraper (Playwright stealth browser)
   database.py        # Oracle DB layer (oracledb)
   embeds.py          # Discord rich embed builder with champion thumbnails
+  commentary.py      # Extreme-match roast/praise logic + Ollama prompt builder
   models.py          # Data models (SummonerConfig, MatchResult)
   champion_icons.py  # Riot DDragon CDN icon resolution and caching
   daily_summary.py   # 8-hour summary GIF renderer (Pillow)
 scripts/
   setup_db.sql       # Oracle schema (sequences + tables)
-tests/               # 87 unit and integration tests
+tests/               # 99 unit and integration tests
 assets/
   visual-explainer.html  # Interactive architecture diagram
   slides.html            # Presentation deck
@@ -171,7 +177,7 @@ conda activate leaguespy
 pytest tests/ -v
 ```
 
-87 tests covering the scraper, database, embeds, champion icons, summary GIF renderer, and scheduler boundary logic.
+99 tests covering the scraper, commentary module, database, embeds, champion icons, summary GIF renderer, and scheduler boundary logic.
 
 ## License
 
