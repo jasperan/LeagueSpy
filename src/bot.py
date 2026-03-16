@@ -146,33 +146,34 @@ class LeagueSpyBot(commands.Bot):
             return
         self._last_summary_check = now
 
-        logger.info("Generating 8-hour summary...")
-        since = now - timedelta(hours=8)
-        since_str = since.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            logger.info("Generating 8-hour summary...")
+            since = now - timedelta(hours=8)
+            since_str = since.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%d %H:%M:%S")
 
-        matches = self.db.get_matches_since(since_str)
-        if not matches:
-            logger.info("No matches in the last 8 hours, skipping summary")
-            return
-
-        grouped = group_by_player(matches)
-        gif_buf = build_summary_gif(grouped)
-        if gif_buf is None:
-            return
-
-        channel = self.get_channel(self.channel_id)
-        if channel is None:
-            try:
-                channel = await self.fetch_channel(self.channel_id)
-            except Exception as e:
-                logger.error("Channel %d not found: %s", self.channel_id, e)
+            matches = self.db.get_matches_since(since_str)
+            if not matches:
+                logger.info("No matches in the last 8 hours, skipping summary")
                 return
 
-        await channel.send(
-            content="**8-Hour Match Summary**",
-            file=discord.File(gif_buf, filename="leaguespy_summary.gif"),
-        )
-        logger.info("Summary GIF sent (%d players, %d matches)", len(grouped), len(matches))
+            grouped = group_by_player(matches)
+            gif_buf = await asyncio.get_event_loop().run_in_executor(
+                None, build_summary_gif, grouped,
+            )
+            if gif_buf is None:
+                return
+
+            channel = self.get_channel(self.channel_id)
+            if channel is None:
+                channel = await self.fetch_channel(self.channel_id)
+
+            await channel.send(
+                content="**8-Hour Match Summary**",
+                file=discord.File(gif_buf, filename="leaguespy_summary.gif"),
+            )
+            logger.info("Summary GIF sent (%d players, %d matches)", len(grouped), len(matches))
+        except Exception as e:
+            logger.error("Summary generation failed: %s", e)
 
     @summary_check.before_loop
     async def before_summary(self):

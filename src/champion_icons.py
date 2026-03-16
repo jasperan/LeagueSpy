@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from pathlib import Path
 
 import httpx
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 # Module-level cache
 # ---------------------------------------------------------------------------
 _current_version: str | None = None
+_version_fetched_at: float = 0.0
+_VERSION_TTL = 6 * 3600  # re-fetch DDragon version every 6 hours
 
 DDRAGON_BASE = "https://ddragon.leagueoflegends.com"
 ICON_CACHE_DIR = Path("/tmp/leaguespy_icons")
@@ -53,9 +56,9 @@ def fetch_ddragon_version() -> str:
 
     Falls back to ``"14.6.1"`` on any network or parsing error.
     """
-    global _current_version  # noqa: PLW0603
+    global _current_version, _version_fetched_at  # noqa: PLW0603
 
-    if _current_version is not None:
+    if _current_version is not None and (time.monotonic() - _version_fetched_at) < _VERSION_TTL:
         return _current_version
 
     try:
@@ -63,9 +66,12 @@ def fetch_ddragon_version() -> str:
         resp.raise_for_status()
         versions = resp.json()
         _current_version = versions[0]
+        _version_fetched_at = time.monotonic()
     except Exception:
         logger.warning("Failed to fetch DDragon version, falling back to 14.6.1")
-        _current_version = "14.6.1"
+        if _current_version is None:
+            _current_version = "14.6.1"
+            _version_fetched_at = time.monotonic()
 
     return _current_version
 

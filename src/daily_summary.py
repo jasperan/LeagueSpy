@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from functools import lru_cache
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
@@ -26,6 +27,7 @@ _ICON_PAD = 6
 _MARGIN = 30
 
 
+@lru_cache(maxsize=8)
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     for path in [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
