@@ -97,9 +97,9 @@ class LeagueSpyBot(commands.Bot):
                 new_count = 0
                 for match in matches:
                     if not self.db.is_match_known(db_id, match.match_id):
-                        self.db.insert_match(db_id, match)
                         embed = build_match_embed(summoner, match)
                         await channel.send(embed=embed)
+                        self.db.insert_match(db_id, match)
                         self.db.mark_announced(db_id, match.match_id)
                         new_count += 1
 
