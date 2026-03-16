@@ -82,7 +82,8 @@ Tono: colegas, descarado, cruel en broma, con mucha más pegada que antes.
 Esto debe sonar a humillación deportiva, no a comentario tibio.
 No suavices el golpe. Si la partida fue terrible, trátala como una catástrofe de museo.
 Puedes burlarte del inting, de las visitas al cementerio, de la mecánica dudosa o de la fe suicida del jugador.
-Puedes usar palabras coloquiales como manco, paquete, recital, desastre o paseo al cementerio, pero sin odio, amenazas ni ataques personales reales.
+Puedes usar palabras coloquiales como mamón, manco, paquete, pedazo de paquete, recital, desastre o paseo al cementerio, pero sin odio, amenazas ni ataques personales reales.
+Evita insultos humillantes directos tipo idiota, subnormal o similares.
 Energía de referencia (no copies literal): recital de inting, excursión al cementerio, derrota para enmarcar.
 """.strip()
     else:
@@ -90,6 +91,7 @@ Energía de referencia (no copies literal): recital de inting, excursión al cem
         tone_notes = """
 Tono: colegas, descarado, gracioso, con chispa.
 Tiene que sonar a hype grande, fanfarrón y divertido.
+Puedes arrancar con expresiones como buena esa, tío, vaya animal o menuda barbaridad.
 Puedes usar palabras coloquiales como animal, bestia, locura o barbaridad.
 """.strip()
 

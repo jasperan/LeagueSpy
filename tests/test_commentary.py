@@ -90,7 +90,10 @@ def test_build_prompt_makes_roasts_more_savage_than_praise():
     assert "humillación deportiva" in roast_prompt
     assert "No suavices el golpe" in roast_prompt
     assert "catástrofe de museo" in roast_prompt
+    assert "mamón" in roast_prompt
+    assert "pedazo de paquete" in roast_prompt
     assert "humillación deportiva" not in praise_prompt
+    assert "buena esa, tío" in praise_prompt
 
 
 @pytest.mark.asyncio
