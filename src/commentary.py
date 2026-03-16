@@ -75,17 +75,29 @@ def build_result_line(summoner: SummonerConfig, match: MatchResult) -> str:
 
 
 def build_prompt(summoner: SummonerConfig, match: MatchResult, kind: str) -> str:
-    style = (
-        "roast amistoso y afilado"
-        if kind == "roast"
-        else "elogio exagerado y divertido"
-    )
+    if kind == "roast":
+        style = "roast salvaje, cruel en broma y con mala leche de colega"
+        tone_notes = """
+Tono: colegas, descarado, cruel en broma, con mucha más pegada que antes.
+Esto debe sonar a humillación deportiva, no a comentario tibio.
+No suavices el golpe. Si la partida fue terrible, trátala como una catástrofe de museo.
+Puedes burlarte del inting, de las visitas al cementerio, de la mecánica dudosa o de la fe suicida del jugador.
+Puedes usar palabras coloquiales como manco, paquete, recital, desastre o paseo al cementerio, pero sin odio, amenazas ni ataques personales reales.
+Energía de referencia (no copies literal): recital de inting, excursión al cementerio, derrota para enmarcar.
+""".strip()
+    else:
+        style = "elogio exagerado y divertido"
+        tone_notes = """
+Tono: colegas, descarado, gracioso, con chispa.
+Tiene que sonar a hype grande, fanfarrón y divertido.
+Puedes usar palabras coloquiales como animal, bestia, locura o barbaridad.
+""".strip()
+
     return f"""
 Eres LeagueSpy, un bot bromista de League of Legends.
 Escribe una sola frase corta en español de España para Discord.
 Tipo: {style}.
-Tono: colegas, descarado, gracioso, con chispa.
-Puedes usar palabras coloquiales como manco, animal, bestia o locura, pero sin odio, amenazas ni ataques personales reales.
+{tone_notes}
 No repitas las estadísticas exactas, porque las añade el bot después.
 No uses emojis, hashtags, viñetas ni comillas.
 Máximo 18 palabras.

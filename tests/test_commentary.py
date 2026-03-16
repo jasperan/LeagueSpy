@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from src.models import MatchResult, SummonerConfig
 from src.commentary import (
     build_commentary,
+    build_prompt,
     deaths_per_minute,
     parse_duration_minutes,
     should_praise,
@@ -76,6 +77,20 @@ def test_parse_duration_minutes_supports_clock_format():
 
 def test_parse_duration_minutes_returns_zero_for_invalid_value():
     assert parse_duration_minutes("Unknown") == 0.0
+
+
+def test_build_prompt_makes_roasts_more_savage_than_praise():
+    summoner = _make_summoner()
+    roast_match = _make_match(win=False, kills=1, deaths=8, assists=2)
+    praise_match = _make_match(win=True, kills=12, deaths=2, assists=9, champion="Jinx")
+
+    roast_prompt = build_prompt(summoner, roast_match, "roast")
+    praise_prompt = build_prompt(summoner, praise_match, "praise")
+
+    assert "humillación deportiva" in roast_prompt
+    assert "No suavices el golpe" in roast_prompt
+    assert "catástrofe de museo" in roast_prompt
+    assert "humillación deportiva" not in praise_prompt
 
 
 @pytest.mark.asyncio
