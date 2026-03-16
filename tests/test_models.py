@@ -6,7 +6,7 @@ def test_summoner_config_creation():
     assert s.player_name == "jasper"
     assert s.slug == "jasper-1971"
     assert s.region == "euw"
-    assert s.op_gg_url == "https://op.gg/lol/summoners/euw/jasper-1971"
+    assert s.profile_url == "https://www.leagueofgraphs.com/summoner/euw/jasper-1971"
 
 
 def test_match_result_creation():
