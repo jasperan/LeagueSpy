@@ -3,10 +3,13 @@ import logging
 import time
 import yaml
 import discord
+from datetime import datetime, time as dt_time, timedelta
+from zoneinfo import ZoneInfo
 from discord.ext import commands, tasks
 from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_embed
+from src.daily_summary import group_by_player, build_summary_gif
 from src.models import SummonerConfig
 
 logger = logging.getLogger("leaguespy")
@@ -33,6 +36,18 @@ def build_summoner_list(config: dict) -> list[SummonerConfig]:
     return summoners
 
 
+_SUMMARY_TIMES = [dt_time(0, 0), dt_time(8, 0), dt_time(16, 0)]
+
+
+def should_fire_summary(now: datetime, last_check: datetime) -> bool:
+    """Return True if a summary boundary was crossed between *last_check* and *now*."""
+    for t in _SUMMARY_TIMES:
+        boundary = now.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+        if last_check < boundary <= now:
+            return True
+    return False
+
+
 class LeagueSpyBot(commands.Bot):
     def __init__(self, config: dict):
         intents = discord.Intents.default()
@@ -54,6 +69,9 @@ class LeagueSpyBot(commands.Bot):
             db_id = self.db.get_or_create_summoner(s.player_name, s.slug, s.region)
             self.summoner_db_ids[s.slug] = db_id
 
+        self._madrid_tz = ZoneInfo("Europe/Madrid")
+        self._last_summary_check = datetime.now(self._madrid_tz)
+
     async def on_ready(self):
         logger.info("LeagueSpy bot logged in as %s", self.user)
         logger.info("Tracking %d summoner(s)", len(self.summoners))
@@ -62,6 +80,8 @@ class LeagueSpyBot(commands.Bot):
             interval = self.config.get("scraping", {}).get("interval_minutes", 5)
             self.check_matches.change_interval(minutes=interval)
             self.check_matches.start()
+        if not self.summary_check.is_running():
+            self.summary_check.start()
 
     @tasks.loop(minutes=5)
     async def check_matches(self):
@@ -116,6 +136,46 @@ class LeagueSpyBot(commands.Bot):
 
     @check_matches.before_loop
     async def before_check(self):
+        await self.wait_until_ready()
+
+    @tasks.loop(seconds=60)
+    async def summary_check(self):
+        now = datetime.now(self._madrid_tz)
+        if not should_fire_summary(now, self._last_summary_check):
+            self._last_summary_check = now
+            return
+        self._last_summary_check = now
+
+        logger.info("Generating 8-hour summary...")
+        since = now - timedelta(hours=8)
+        since_str = since.strftime("%Y-%m-%d %H:%M:%S")
+
+        matches = self.db.get_matches_since(since_str)
+        if not matches:
+            logger.info("No matches in the last 8 hours, skipping summary")
+            return
+
+        grouped = group_by_player(matches)
+        gif_buf = build_summary_gif(grouped)
+        if gif_buf is None:
+            return
+
+        channel = self.get_channel(self.channel_id)
+        if channel is None:
+            try:
+                channel = await self.fetch_channel(self.channel_id)
+            except Exception as e:
+                logger.error("Channel %d not found: %s", self.channel_id, e)
+                return
+
+        await channel.send(
+            content="**8-Hour Match Summary**",
+            file=discord.File(gif_buf, filename="leaguespy_summary.gif"),
+        )
+        logger.info("Summary GIF sent (%d players, %d matches)", len(grouped), len(matches))
+
+    @summary_check.before_loop
+    async def before_summary(self):
         await self.wait_until_ready()
 
     async def close(self):
