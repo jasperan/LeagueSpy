@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from src.models import MatchResult, SummonerConfig
 from src.commentary import (
+    _request_ollama,
     build_commentary,
     build_prompt,
     deaths_per_minute,
@@ -94,6 +95,19 @@ def test_build_prompt_makes_roasts_more_savage_than_praise():
     assert "pedazo de paquete" in roast_prompt
     assert "humillación deportiva" not in praise_prompt
     assert "buena esa, tío" in praise_prompt
+
+
+def test_request_ollama_disables_thinking_mode():
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {
+        "response": "ok",
+    }
+
+    with patch("src.commentary.httpx.post", return_value=mock_response) as mock_post:
+        _request_ollama("hola")
+
+    assert mock_post.call_args.kwargs["json"]["think"] is False
 
 
 @pytest.mark.asyncio

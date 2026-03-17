@@ -130,6 +130,7 @@ def _request_ollama(prompt: str) -> str:
             "model": OLLAMA_MODEL,
             "prompt": prompt,
             "stream": False,
+            "think": False,
             "options": {
                 "temperature": 0.9,
                 "num_predict": 80,
