@@ -74,3 +74,174 @@ def test_get_matches_since(mock_db):
     assert results[0]["champion"] == "Jinx"
     assert results[0]["win"] == 1
     assert results[1]["win"] == 0
+
+
+def test_update_streak_after_win(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (0,)
+    db.update_streak(1, win=True)
+    assert cursor.execute.call_count == 2
+
+
+def test_update_streak_after_loss(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (0,)
+    db.update_streak(1, win=False)
+    assert cursor.execute.call_count == 2
+
+
+def test_get_streak(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (-3, 5, 4)
+    streak, longest_w, longest_l = db.get_streak(1)
+    assert streak == -3
+    assert longest_w == 5
+    assert longest_l == 4
+
+
+def test_get_player_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (50, 30, 20, 6.5, 3.2, 8.1)
+    stats = db.get_player_stats(1)
+    assert stats["total_games"] == 50
+    assert stats["wins"] == 30
+
+
+def test_get_player_stats_no_matches(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    stats = db.get_player_stats(1)
+    assert stats["total_games"] == 0
+
+
+def test_get_champion_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("Jinx", 20, 14, 7.2, 2.1, 6.5),
+        ("Lux", 10, 5, 3.1, 4.0, 8.2),
+    ]
+    result = db.get_champion_stats(1)
+    assert len(result) == 2
+    assert result[0]["champion"] == "Jinx"
+
+
+def test_get_recent_matches(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("EUW1-100", "Jinx", 1, 8, 2, 5, "32min 15s", "Ranked", "2026-03-16 10:00 UTC"),
+    ]
+    result = db.get_recent_matches(1, limit=5)
+    assert len(result) == 1
+    assert result[0]["match_id"] == "EUW1-100"
+
+
+def test_check_rivalry_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (2, "friend1", "friend1-tag", "euw", 0)
+    result = db.check_rivalry("EUW1-100", summoner_id=1)
+    assert result is not None
+    assert result["player_name"] == "friend1"
+
+
+def test_check_rivalry_not_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    result = db.check_rivalry("EUW1-100", summoner_id=1)
+    assert result is None
+
+
+def test_get_h2h_record(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("EUW1-100", 1, 0, "Jinx", "Leona"),
+    ]
+    result = db.get_h2h_record(summoner_id_a=1, summoner_id_b=2)
+    assert len(result) == 1
+
+
+def test_store_roast(mock_db):
+    db, cursor = mock_db
+    db.store_roast(1, "EUW1-100", "Vaya tela.", "single_loss")
+    cursor.execute.assert_called_once()
+
+
+def test_get_recent_roasts(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [("Roast one.",), ("Roast two.",)]
+    result = db.get_recent_roasts(1, limit=5)
+    assert len(result) == 2
+    assert result[0] == "Roast one."
+
+
+def test_get_leaderboard(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        (1, "jasper", 50, 30, 7.2, 2.5, 6.0, 3),
+    ]
+    result = db.get_leaderboard(min_games=10)
+    assert len(result) == 1
+    assert result[0]["player_name"] == "jasper"
+
+
+def test_get_weekly_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        (1, "jasper", "jasper-1971", 12, 8, 7.0, 2.1, 6.5, "Jinx"),
+    ]
+    result = db.get_weekly_stats()
+    assert len(result) == 1
+    assert result[0]["top_champion"] == "Jinx"
+
+
+def test_get_summoner_id_by_slug(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (42,)
+    assert db.get_summoner_id_by_slug("jasper-1971") == 42
+
+
+def test_get_summoner_id_by_slug_not_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    assert db.get_summoner_id_by_slug("nonexistent") is None
+
+
+def test_get_all_summoner_ids_for_player(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [(1,), (5,)]
+    assert db.get_all_summoner_ids_for_player("jasper") == [1, 5]
+
+
+def test_deactivate_summoner(mock_db):
+    db, cursor = mock_db
+    db.deactivate_summoner(1)
+    cursor.execute.assert_called_once()
+
+
+def test_truncate_live_games(mock_db):
+    db, cursor = mock_db
+    db.truncate_live_games()
+    cursor.execute.assert_called_once()
+
+
+def test_is_live_game_true(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (1,)
+    assert db.is_live_game(1) is True
+
+
+def test_is_live_game_false(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    assert db.is_live_game(1) is False
+
+
+def test_set_live_game(mock_db):
+    db, cursor = mock_db
+    db.set_live_game(1, "Yasuo", "Ranked")
+    cursor.execute.assert_called_once()
+
+
+def test_clear_live_game(mock_db):
+    db, cursor = mock_db
+    db.clear_live_game(1)
+    cursor.execute.assert_called_once()

@@ -94,5 +94,235 @@ class Database:
             ]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
 
+    def update_streak(self, summoner_id: int, win: bool) -> int:
+        """Update streak counters after a match. Returns the new current_streak."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_streak FROM summoners WHERE id = :sid",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            current = row[0] if row else 0
+
+            if win:
+                new_streak = current + 1 if current > 0 else 1
+            else:
+                new_streak = current - 1 if current < 0 else -1
+
+            abs_streak = abs(new_streak)
+            if win:
+                cur.execute(
+                    """UPDATE summoners
+                       SET current_streak = :streak,
+                           longest_win_streak = GREATEST(longest_win_streak, :abs)
+                       WHERE id = :sid""",
+                    {"streak": new_streak, "abs": abs_streak, "sid": summoner_id},
+                )
+            else:
+                cur.execute(
+                    """UPDATE summoners
+                       SET current_streak = :streak,
+                           longest_loss_streak = GREATEST(longest_loss_streak, :abs)
+                       WHERE id = :sid""",
+                    {"streak": new_streak, "abs": abs_streak, "sid": summoner_id},
+                )
+            self.conn.commit()
+            return new_streak
+
+    def get_streak(self, summoner_id: int) -> tuple[int, int, int]:
+        """Return (current_streak, longest_win_streak, longest_loss_streak)."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT current_streak, longest_win_streak, longest_loss_streak
+                   FROM summoners WHERE id = :sid""",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            return (row[0], row[1], row[2]) if row else (0, 0, 0)
+
+    def get_player_stats(self, summoner_id: int) -> dict:
+        """Return aggregate stats for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT COUNT(*), SUM(win), COUNT(*) - SUM(win),
+                          ROUND(AVG(kills), 1), ROUND(AVG(deaths), 1), ROUND(AVG(assists), 1)
+                   FROM matches WHERE summoner_id = :sid""",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            if not row or row[0] is None or row[0] == 0:
+                return {"total_games": 0, "wins": 0, "losses": 0,
+                        "avg_kills": 0, "avg_deaths": 0, "avg_assists": 0}
+            return {
+                "total_games": int(row[0]), "wins": int(row[1]), "losses": int(row[2]),
+                "avg_kills": float(row[3]), "avg_deaths": float(row[4]), "avg_assists": float(row[5]),
+            }
+
+    def get_champion_stats(self, summoner_id: int, limit: int = 10) -> list[dict]:
+        """Return per-champion stats sorted by games played."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT champion, COUNT(*) as games, SUM(win) as wins,
+                          ROUND(AVG(kills), 1), ROUND(AVG(deaths), 1), ROUND(AVG(assists), 1)
+                   FROM matches WHERE summoner_id = :sid
+                   GROUP BY champion ORDER BY games DESC
+                   FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            cols = ["champion", "games", "wins", "avg_kills", "avg_deaths", "avg_assists"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_recent_matches(self, summoner_id: int, limit: int = 10) -> list[dict]:
+        """Return the N most recent matches for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT match_id, champion, win, kills, deaths, assists,
+                          game_duration, game_mode, played_at
+                   FROM matches WHERE summoner_id = :sid
+                   ORDER BY created_at DESC
+                   FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            cols = ["match_id", "champion", "win", "kills", "deaths", "assists",
+                    "game_duration", "game_mode", "played_at"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def check_rivalry(self, match_id: str, summoner_id: int) -> dict | None:
+        """Check if another tracked summoner was in this match."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, s.summoner_slug, s.region, m.win
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   WHERE m.match_id = :mid AND m.summoner_id != :sid
+                   FETCH FIRST 1 ROWS ONLY""",
+                {"mid": match_id, "sid": summoner_id},
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {"summoner_id": row[0], "player_name": row[1],
+                    "summoner_slug": row[2], "region": row[3], "win": row[4]}
+
+    def get_h2h_record(self, summoner_id_a: int, summoner_id_b: int) -> list[dict]:
+        """Return all matches where both summoners participated."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT ma.match_id, ma.win as a_win, mb.win as b_win,
+                          ma.champion as a_champ, mb.champion as b_champ
+                   FROM matches ma JOIN matches mb ON ma.match_id = mb.match_id
+                   WHERE ma.summoner_id = :a AND mb.summoner_id = :b
+                   ORDER BY ma.created_at DESC""",
+                {"a": summoner_id_a, "b": summoner_id_b},
+            )
+            cols = ["match_id", "a_win", "b_win", "a_champ", "b_champ"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def store_roast(self, summoner_id: int, match_id: str, roast_text: str, trigger_type: str) -> None:
+        """Insert a roast into history."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO roast_history (summoner_id, match_id, roast_text, trigger_type)
+                   VALUES (:sid, :mid, :txt, :ttype)""",
+                {"sid": summoner_id, "mid": match_id, "txt": roast_text, "ttype": trigger_type},
+            )
+            self.conn.commit()
+
+    def get_recent_roasts(self, summoner_id: int, limit: int = 5) -> list[str]:
+        """Return the most recent roast texts for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT roast_text FROM roast_history WHERE summoner_id = :sid
+                   ORDER BY created_at DESC FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            return [row[0] for row in cur.fetchall()]
+
+    def get_leaderboard(self, min_games: int = 10) -> list[dict]:
+        """Return leaderboard sorted by win rate, filtered by minimum games."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, COUNT(*) as games, SUM(m.win) as wins,
+                          ROUND(AVG(m.kills), 1), ROUND(AVG(m.deaths), 1),
+                          ROUND(AVG(m.assists), 1), s.current_streak
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   GROUP BY s.id, s.player_name, s.current_streak
+                   HAVING COUNT(*) >= :min_g
+                   ORDER BY SUM(m.win) / COUNT(*) DESC""",
+                {"min_g": min_games},
+            )
+            cols = ["summoner_id", "player_name", "total_games", "wins",
+                    "avg_kills", "avg_deaths", "avg_assists", "current_streak"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_weekly_stats(self) -> list[dict]:
+        """Return per-player stats for the last 7 days."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, s.summoner_slug,
+                          COUNT(*) as games, SUM(m.win) as wins,
+                          ROUND(AVG(m.kills), 1), ROUND(AVG(m.deaths), 1),
+                          ROUND(AVG(m.assists), 1),
+                          (SELECT champion FROM matches m2
+                           WHERE m2.summoner_id = s.id
+                             AND m2.created_at >= SYSTIMESTAMP - INTERVAL '7' DAY
+                           GROUP BY champion ORDER BY COUNT(*) DESC
+                           FETCH FIRST 1 ROWS ONLY) as top_champ
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   WHERE m.created_at >= SYSTIMESTAMP - INTERVAL '7' DAY
+                   GROUP BY s.id, s.player_name, s.summoner_slug
+                   ORDER BY SUM(m.win) / COUNT(*) DESC""",
+            )
+            cols = ["summoner_id", "player_name", "summoner_slug", "games", "wins",
+                    "avg_kills", "avg_deaths", "avg_assists", "top_champion"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_summoner_id_by_slug(self, slug: str) -> int | None:
+        """Look up a summoner ID by their slug."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT id FROM summoners WHERE summoner_slug = :slug", {"slug": slug})
+            row = cur.fetchone()
+            return row[0] if row else None
+
+    def get_all_summoner_ids_for_player(self, player_name: str) -> list[int]:
+        """Return all summoner IDs belonging to a player (main + smurfs)."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT id FROM summoners WHERE player_name = :name", {"name": player_name})
+            return [row[0] for row in cur.fetchall()]
+
+    def deactivate_summoner(self, summoner_id: int) -> None:
+        """Remove a summoner from tracking."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM summoners WHERE id = :sid", {"sid": summoner_id})
+            self.conn.commit()
+
+    def truncate_live_games(self) -> None:
+        """Clear all live game records."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM live_games")
+            self.conn.commit()
+
+    def is_live_game(self, summoner_id: int) -> bool:
+        """Check if a summoner is currently in a live game."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM live_games WHERE summoner_id = :sid", {"sid": summoner_id})
+            return cur.fetchone() is not None
+
+    def set_live_game(self, summoner_id: int, champion: str | None, game_mode: str | None) -> None:
+        """Record that a summoner is in a live game."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """MERGE INTO live_games lg USING (SELECT :sid as sid FROM dual) src
+                   ON (lg.summoner_id = src.sid)
+                   WHEN NOT MATCHED THEN INSERT (summoner_id, champion, game_mode) VALUES (:sid, :champ, :gm)""",
+                {"sid": summoner_id, "champ": champion, "gm": game_mode},
+            )
+            self.conn.commit()
+
+    def clear_live_game(self, summoner_id: int) -> None:
+        """Remove the live game record for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM live_games WHERE summoner_id = :sid", {"sid": summoner_id})
+            self.conn.commit()
+
     def close(self):
         self.conn.close()
