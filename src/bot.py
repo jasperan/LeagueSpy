@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import time
+from collections import deque
 import yaml
 import discord
 from datetime import datetime, time as dt_time, timedelta
@@ -70,6 +71,10 @@ class LeagueSpyBot(commands.Bot):
             db_id = self.db.get_or_create_summoner(s.player_name, s.slug, s.region)
             self.summoner_db_ids[s.slug] = db_id
 
+        self.new_matches: deque = deque(maxlen=100)
+        self.llm_config = config.get("llm", {})
+        self.features = config.get("features", {})
+
         self._madrid_tz = ZoneInfo("Europe/Madrid")
         self._last_summary_check = datetime.now(self._madrid_tz)
 
@@ -77,12 +82,37 @@ class LeagueSpyBot(commands.Bot):
         logger.info("LeagueSpy bot logged in as %s", self.user)
         logger.info("Tracking %d summoner(s)", len(self.summoners))
         await self.scraper.start()
+        self.db.truncate_live_games()
         if not self.check_matches.is_running():
             interval = self.config.get("scraping", {}).get("interval_minutes", 5)
             self.check_matches.change_interval(minutes=interval)
             self.check_matches.start()
         if not self.summary_check.is_running():
             self.summary_check.start()
+        await self._load_cogs()
+
+    async def _load_cogs(self):
+        if self.features.get("slash_commands", False):
+            from src.cogs.commands import SpyCog
+            await self.add_cog(SpyCog(self))
+            logger.info("Loaded SpyCog")
+        if self.features.get("roast", False) and self.llm_config:
+            from src.cogs.roast import RoastCog
+            await self.add_cog(RoastCog(self))
+            logger.info("Loaded RoastCog")
+        if self.features.get("analytics", False):
+            from src.cogs.analytics import AnalyticsCog
+            await self.add_cog(AnalyticsCog(self))
+            logger.info("Loaded AnalyticsCog")
+        if self.features.get("live_alerts", False):
+            from src.cogs.live import LiveCog
+            await self.add_cog(LiveCog(self))
+            logger.info("Loaded LiveCog")
+        try:
+            await self.tree.sync()
+            logger.info("Slash commands synced")
+        except Exception as e:
+            logger.warning("Failed to sync slash commands: %s", e)
 
     @tasks.loop(minutes=5)
     async def check_matches(self):
@@ -123,6 +153,8 @@ class LeagueSpyBot(commands.Bot):
                         await channel.send(**payload)
                         self.db.insert_match(db_id, match)
                         self.db.mark_announced(db_id, match.match_id)
+                        self.db.update_streak(db_id, match.win)
+                        self.new_matches.append({"summoner": summoner, "match": match, "db_id": db_id})
                         new_count += 1
 
                 if new_count > 0:
