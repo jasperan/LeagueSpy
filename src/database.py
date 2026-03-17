@@ -42,9 +42,11 @@ class Database:
             cur.execute(
                 """INSERT INTO matches
                    (summoner_id, match_id, champion, win, kills, deaths, assists,
-                    game_duration, game_mode, played_at, announced)
+                    game_duration, game_mode, played_at, announced,
+                    cs, gold, kill_participation, vision_score, match_url)
                    VALUES (:sid, :mid, :champ, :win, :kills, :deaths, :assists,
-                           :dur, :gmode, :played, 0)""",
+                           :dur, :gmode, :played, 0,
+                           :cs, :gold, :kp, :vs, :murl)""",
                 {
                     "sid": summoner_id,
                     "mid": match.match_id,
@@ -56,6 +58,11 @@ class Database:
                     "dur": match.game_duration,
                     "gmode": match.game_mode,
                     "played": match.played_at,
+                    "cs": match.cs,
+                    "gold": match.gold,
+                    "kp": match.kill_participation,
+                    "vs": match.vision_score,
+                    "murl": match.match_url,
                 },
             )
             self.conn.commit()
