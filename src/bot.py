@@ -157,6 +157,13 @@ class LeagueSpyBot(commands.Bot):
                         self.new_matches.append({"summoner": summoner, "match": match, "db_id": db_id})
                         new_count += 1
 
+                        # Check for rivalry match
+                        analytics_cog = self.get_cog("AnalyticsCog")
+                        if analytics_cog:
+                            await analytics_cog.check_rivalry(
+                                match.match_id, db_id, summoner.player_name, match.win,
+                            )
+
                 if new_count > 0:
                     logger.info("Announced %d new match(es) for %s", new_count, summoner.slug)
                 else:
