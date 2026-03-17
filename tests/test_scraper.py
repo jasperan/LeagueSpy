@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.scraper import LeagueOfGraphsScraper, _KDA_RE, _MATCH_ID_RE, _MATCH_URL_RE, _DURATION_RE, _EPOCH_RE
-from src.models import SummonerConfig, MatchResult
+from src.models import SummonerConfig, MatchResult, MatchParticipant, MatchDetails
 
 
 def _make_summoner():
@@ -551,3 +551,286 @@ class TestCheckInGame:
         html = '<div class="current-game"><span>In Game</span><img alt="Yasuo"></div>'
         result = scraper.parse_in_game_status(html)
         assert result["champion"] == "Yasuo"
+
+
+# ---------------------------------------------------------------------------
+# Match detail page parsing
+# ---------------------------------------------------------------------------
+
+# Minimal fixture with 2 playerRows (4 players total) + bans
+_MATCH_DETAIL_HTML = '''
+<table class="data_table matchTable">
+<tr>
+  <th class="text-left no-padding-right">
+    <span class="defeat">Defeat</span>
+    <span class="kda kda-left hide-for-small-down-custom">39 / 49 / 52</span>
+  </th>
+  <th class="text-center no-padding-lateral"></th>
+  <th class="text-right no-padding-left">
+    <span class="kda kda-right hide-for-small-down-custom">48 / 39 / 60</span>
+    <span class="victory">Victory</span>
+  </th>
+</tr>
+<tr class="playerRow">
+  <td class="text-left summoner_column">
+    <div class="img-align-block"><div class="relative">
+      <a href="/summoner/euw/stmlyc-0922">
+        <div><img alt="Lee Sin" title="Lee Sin" height="48" width="48"/></div>
+      </a>
+    </div>
+    <div class="txt"><a href="/summoner/euw/stmlyc-0922">
+      <div class="name"> stmlyc#0922 </div>
+      <div class="subname"><i> Diamond IV </i></div>
+    </a></div></div>
+  </td>
+  <td class="kdaColumn hide-for-small-down requireTooltip noCursor"
+      tooltip="<itemname>Farming</itemname> <div> Minions: 352 </div>">
+    <div class="kda ">
+      <span class="kills">3</span> / <span class="deaths">8</span> / <span class="assists">7</span>
+    </div>
+    <div class="cs"> 352 CS - 16.3k gold </div>
+    <div class="cs"> 26% Kills P. - Vision: 55 </div>
+  </td>
+  <td class="itemsColumn itemsColumn-100"></td>
+  <td class="itemsColumn itemsColumn-200"></td>
+  <td class="kdaColumn hide-for-small-down requireTooltip noCursor"
+      tooltip="<itemname>Farming</itemname> <div> Minions: 268 </div>">
+    <div class="kda ">
+      <span class="kills">16</span> / <span class="deaths">4</span> / <span class="assists">7</span>
+    </div>
+    <div class="cs"> 268 CS - 20.6k gold </div>
+    <div class="cs"> 48% Kills P. - Vision: 26 </div>
+  </td>
+  <td class="text-right summoner_column">
+    <div class="img-align-block"><div class="relative">
+      <a href="/summoner/euw/Pangea-EUWV1">
+        <div><img alt="Jax" title="Jax" height="48" width="48"/></div>
+      </a>
+    </div>
+    <div class="txt"><a href="/summoner/euw/Pangea-EUWV1">
+      <div class="name"> Pangea#EUWV1 </div>
+      <div class="subname"><i> Diamond I </i></div>
+    </a></div></div>
+  </td>
+</tr>
+<tr class="playerRow">
+  <td class="text-left summoner_column">
+    <div class="img-align-block"><div class="relative">
+      <a href="/summoner/euw/nichtnoah-999">
+        <div><img alt="Kha'Zix" title="Kha'Zix" height="48" width="48"/></div>
+      </a>
+    </div>
+    <div class="txt"><a href="/summoner/euw/nichtnoah-999">
+      <div class="name"> nichtnoah#999 </div>
+      <div class="subname"><i> Platinum IV </i></div>
+    </a></div></div>
+  </td>
+  <td class="kdaColumn hide-for-small-down requireTooltip noCursor"
+      tooltip="stats">
+    <div class="kda ">
+      <span class="kills">10</span> / <span class="deaths">10</span> / <span class="assists">9</span>
+    </div>
+    <div class="cs"> 240 CS - 17.6k gold </div>
+    <div class="cs"> 49% Kills P. - Vision: 46 </div>
+  </td>
+  <td class="itemsColumn itemsColumn-100"></td>
+  <td class="itemsColumn itemsColumn-200"></td>
+  <td class="kdaColumn hide-for-small-down requireTooltip noCursor"
+      tooltip="stats">
+    <div class="kda ">
+      <span class="kills">15</span> / <span class="deaths">7</span> / <span class="assists">6</span>
+    </div>
+    <div class="cs"> 266 CS - 18.9k gold </div>
+    <div class="cs"> 44% Kills P. - Vision: 45 </div>
+  </td>
+  <td class="text-right summoner_column">
+    <div class="img-align-block"><div class="relative">
+      <a href="/summoner/euw/FentaniloLover-1NCEL">
+        <div><img alt="Gwen" title="Gwen" height="48" width="48"/></div>
+      </a>
+    </div>
+    <div class="txt"><a href="/summoner/euw/FentaniloLover-1NCEL">
+      <div class="name"> FentaniloLover#1NCEL </div>
+      <div class="subname"><i> Emerald II </i></div>
+    </a></div></div>
+  </td>
+</tr>
+<tr>
+  <td class="bansColumn text-center" colspan="2">
+    <span class="bansText">Bans:</span>
+    <div class="bannedChampion requireTooltip" tooltip="Nautilus"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Olaf"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Mel"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Rammus"></div>
+  </td>
+  <td class="text-center"></td>
+  <td class="bansColumn text-center" colspan="2">
+    <span class="bansText">Bans:</span>
+    <div class="bannedChampion requireTooltip" tooltip="Malphite"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Rengar"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Karma"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Ekko"></div>
+    <div class="bannedChampion requireTooltip" tooltip="Ambessa"></div>
+  </td>
+</tr>
+</table>
+'''
+
+
+class TestParseMatchDetails:
+    def test_extracts_both_teams(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        assert details is not None
+        assert len(details.team1_players) == 2
+        assert len(details.team2_players) == 2
+
+    def test_team_results(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        assert details.team1_result == "Defeat"
+        assert details.team2_result == "Victory"
+
+    def test_left_player_stats(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        p = details.team1_players[0]
+        assert isinstance(p, MatchParticipant)
+        assert p.summoner_name == "stmlyc#0922"
+        assert p.rank == "Diamond IV"
+        assert p.champion == "Lee Sin"
+        assert p.kills == 3
+        assert p.deaths == 8
+        assert p.assists == 7
+        assert p.cs == 352
+        assert p.gold == 16300
+        assert p.kill_participation == 26
+        assert p.vision_score == 55
+
+    def test_right_player_stats(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        p = details.team2_players[0]
+        assert isinstance(p, MatchParticipant)
+        assert p.summoner_name == "Pangea#EUWV1"
+        assert p.rank == "Diamond I"
+        assert p.champion == "Jax"
+        assert p.kills == 16
+        assert p.deaths == 4
+        assert p.assists == 7
+        assert p.cs == 268
+        assert p.gold == 20600
+        assert p.kill_participation == 48
+        assert p.vision_score == 26
+
+    def test_second_row_players(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        # Second left player
+        p1 = details.team1_players[1]
+        assert p1.summoner_name == "nichtnoah#999"
+        assert p1.champion == "Kha'Zix"
+        assert p1.rank == "Platinum IV"
+        assert p1.kills == 10
+        assert p1.deaths == 10
+        assert p1.assists == 9
+        assert p1.cs == 240
+        assert p1.gold == 17600
+        assert p1.kill_participation == 49
+        assert p1.vision_score == 46
+        # Second right player
+        p2 = details.team2_players[1]
+        assert p2.summoner_name == "FentaniloLover#1NCEL"
+        assert p2.champion == "Gwen"
+        assert p2.rank == "Emerald II"
+        assert p2.kills == 15
+        assert p2.deaths == 7
+        assert p2.assists == 6
+        assert p2.cs == 266
+        assert p2.gold == 18900
+        assert p2.kill_participation == 44
+        assert p2.vision_score == 45
+
+    def test_bans_extracted(self):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(_MATCH_DETAIL_HTML)
+        assert details.team1_bans == ["Nautilus", "Olaf", "Mel", "Rammus"]
+        assert details.team2_bans == ["Malphite", "Rengar", "Karma", "Ekko", "Ambessa"]
+
+    def test_returns_none_on_no_table(self):
+        scraper = LeagueOfGraphsScraper()
+        result = scraper.parse_match_details("<html><body>No match table</body></html>")
+        assert result is None
+
+
+class TestParseMatchDetailsRealPage:
+    """Tests against the real match page HTML saved at /tmp/match_page.html."""
+
+    @pytest.fixture
+    def real_html(self):
+        with open("/tmp/match_page.html", "r", encoding="utf-8") as f:
+            return f.read()
+
+    def test_parses_all_10_players(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        assert details is not None
+        assert len(details.team1_players) == 5
+        assert len(details.team2_players) == 5
+
+    def test_team_results_real(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        assert details.team1_result == "Defeat"
+        assert details.team2_result == "Victory"
+
+    def test_first_left_player_real(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        p = details.team1_players[0]
+        assert p.summoner_name == "stmlyc#0922"
+        assert p.rank == "Diamond IV"
+        assert p.champion == "Lee Sin"
+        assert p.kills == 3
+        assert p.deaths == 8
+        assert p.assists == 7
+        assert p.cs == 352
+        assert p.gold == 16300
+        assert p.kill_participation == 26
+        assert p.vision_score == 55
+
+    def test_first_right_player_real(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        p = details.team2_players[0]
+        assert p.summoner_name == "Pangea#EUWV1"
+        assert p.rank == "Diamond I"
+        assert p.champion == "Jax"
+        assert p.kills == 16
+        assert p.deaths == 4
+        assert p.assists == 7
+        assert p.cs == 268
+        assert p.gold == 20600
+        assert p.kill_participation == 48
+        assert p.vision_score == 26
+
+    def test_bans_real(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        assert details.team1_bans == ["Nautilus", "Olaf", "Mel", "Rammus"]
+        assert details.team2_bans == ["Malphite", "Rengar", "Karma", "Ekko", "Ambessa"]
+
+    def test_all_players_have_valid_stats(self, real_html):
+        scraper = LeagueOfGraphsScraper()
+        details = scraper.parse_match_details(real_html)
+        for team in [details.team1_players, details.team2_players]:
+            for p in team:
+                assert p.summoner_name, "Name should not be empty"
+                assert p.champion, "Champion should not be empty"
+                assert p.kills >= 0
+                assert p.deaths >= 0
+                assert p.assists >= 0
+                assert p.cs >= 0
+                assert p.gold > 0
+                assert 0 <= p.kill_participation <= 100
+                assert p.vision_score >= 0

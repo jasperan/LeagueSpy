@@ -5,7 +5,7 @@ from typing import List
 from datetime import datetime, timezone
 
 from playwright.async_api import async_playwright
-from src.models import SummonerConfig, MatchResult
+from src.models import SummonerConfig, MatchResult, MatchParticipant, MatchDetails
 
 logger = logging.getLogger("leaguespy.scraper")
 
@@ -223,6 +223,176 @@ class LeagueOfGraphsScraper:
 
         logger.info("Found %d matches for %s", len(matches), summoner.slug)
         return matches
+
+    def _parse_kda_stats(self, kda_section: str) -> tuple:
+        """Parse a kdaColumn section for KDA + CS/gold/KP/vision from visible divs.
+
+        Returns (kills, deaths, assists, cs, gold, kill_participation, vision_score).
+        """
+        kills = deaths = assists = cs = gold = kp = vision = 0
+
+        # KDA from spans
+        k_m = re.search(r'class="kills">(\d+)', kda_section)
+        d_m = re.search(r'class="deaths">(\d+)', kda_section)
+        a_m = re.search(r'class="assists">(\d+)', kda_section)
+        if k_m:
+            kills = int(k_m.group(1))
+        if d_m:
+            deaths = int(d_m.group(1))
+        if a_m:
+            assists = int(a_m.group(1))
+
+        # CS and gold from visible div: "352 CS - 16.3k gold"
+        cs_divs = re.findall(r'<div\s+class="cs"[^>]*>\s*(.*?)\s*</div>', kda_section, re.DOTALL)
+        if cs_divs:
+            # First cs div: "352 CS - 16.3k gold"
+            cs_gold_text = cs_divs[0]
+            cs_m = re.search(r'(\d+)\s*CS', cs_gold_text)
+            if cs_m:
+                cs = int(cs_m.group(1))
+            gold_m = re.search(r'([\d.]+)k\s*gold', cs_gold_text)
+            if gold_m:
+                gold = int(float(gold_m.group(1)) * 1000)
+
+        if len(cs_divs) > 1:
+            # Second cs div: "26% Kills P. - Vision: 55"
+            kp_vision_text = cs_divs[1]
+            kp_m = re.search(r'(\d+)%', kp_vision_text)
+            if kp_m:
+                kp = int(kp_m.group(1))
+            vis_m = re.search(r'Vision:\s*(\d+)', kp_vision_text)
+            if vis_m:
+                vision = int(vis_m.group(1))
+
+        return (kills, deaths, assists, cs, gold, kp, vision)
+
+    def _parse_player_left(self, row: str) -> MatchParticipant | None:
+        """Parse the left (team1) player from a playerRow."""
+        # Extract left summoner column
+        col = re.search(r'<td[^>]*text-left[^>]*summoner_column[^>]*>(.*?)</td>', row, re.DOTALL)
+        if not col:
+            return None
+
+        col_html = col.group(1)
+        name_m = re.search(r'<div class="name">\s*([^<]+?)\s*</div>', col_html)
+        champ_m = re.search(r'alt="([^"]+)"', col_html)
+        rank_m = re.search(r'subname[^>]*>.*?<i[^>]*>\s*(.*?)\s*</i>', col_html, re.DOTALL)
+
+        summoner_name = name_m.group(1).strip() if name_m else "Unknown"
+        champion = champ_m.group(1) if champ_m else "Unknown"
+        rank = rank_m.group(1).strip() if rank_m else "Unranked"
+
+        # First kdaColumn in the row is for team1 (left)
+        kda_cols = list(re.finditer(r'<td[^>]*kdaColumn[^>]*>(.*?)</td>', row, re.DOTALL))
+        if not kda_cols:
+            return None
+
+        kills, deaths, assists, cs, gold, kp, vision = self._parse_kda_stats(kda_cols[0].group(1))
+
+        return MatchParticipant(
+            summoner_name=summoner_name,
+            rank=rank,
+            champion=champion,
+            kills=kills,
+            deaths=deaths,
+            assists=assists,
+            cs=cs,
+            gold=gold,
+            kill_participation=kp,
+            vision_score=vision,
+        )
+
+    def _parse_player_right(self, row: str) -> MatchParticipant | None:
+        """Parse the right (team2) player from a playerRow."""
+        # Extract right summoner column
+        col = re.search(r'<td[^>]*text-right[^>]*summoner_column[^>]*>(.*?)</td>', row, re.DOTALL)
+        if not col:
+            return None
+
+        col_html = col.group(1)
+        name_m = re.search(r'<div class="name">\s*([^<]+?)\s*</div>', col_html)
+        champ_m = re.search(r'alt="([^"]+)"', col_html)
+        rank_m = re.search(r'subname[^>]*>.*?<i[^>]*>\s*(.*?)\s*</i>', col_html, re.DOTALL)
+
+        summoner_name = name_m.group(1).strip() if name_m else "Unknown"
+        champion = champ_m.group(1) if champ_m else "Unknown"
+        rank = rank_m.group(1).strip() if rank_m else "Unranked"
+
+        # Second kdaColumn in the row is for team2 (right)
+        kda_cols = list(re.finditer(r'<td[^>]*kdaColumn[^>]*>(.*?)</td>', row, re.DOTALL))
+        if len(kda_cols) < 2:
+            return None
+
+        kills, deaths, assists, cs, gold, kp, vision = self._parse_kda_stats(kda_cols[1].group(1))
+
+        return MatchParticipant(
+            summoner_name=summoner_name,
+            rank=rank,
+            champion=champion,
+            kills=kills,
+            deaths=deaths,
+            assists=assists,
+            cs=cs,
+            gold=gold,
+            kill_participation=kp,
+            vision_score=vision,
+        )
+
+    def parse_match_details(self, html: str) -> MatchDetails | None:
+        """Parse a match detail page for all 10 players and bans.
+
+        Expects the HTML from a page like /match/euw/7782016191.
+        Returns None if the matchTable is not found.
+        """
+        # Find the matchTable
+        table_m = re.search(r'<table[^>]*matchTable[^>]*>(.*?)</table>', html, re.DOTALL)
+        if not table_m:
+            return None
+
+        table_html = table_m.group(0)
+
+        # Team results from header row
+        result_spans = re.findall(r'<span class="(victory|defeat)">\s*(\w+)\s*</span>', table_html)
+        team1_result = result_spans[0][1] if result_spans else "Unknown"
+        team2_result = result_spans[1][1] if len(result_spans) > 1 else "Unknown"
+
+        # Player rows
+        player_rows = re.findall(
+            r'<tr[^>]*class="[^"]*playerRow[^"]*"[^>]*>(.*?)</tr>',
+            table_html, re.DOTALL,
+        )
+
+        team1_players = []
+        team2_players = []
+        for row_content in player_rows:
+            # Wrap back in <tr> so TD patterns work consistently
+            row = f"<tr>{row_content}</tr>"
+
+            left = self._parse_player_left(row)
+            if left:
+                team1_players.append(left)
+
+            right = self._parse_player_right(row)
+            if right:
+                team2_players.append(right)
+
+        # Bans: two bansColumn TDs
+        bans_cols = re.findall(r'<td[^>]*bansColumn[^>]*>(.*?)</td>', table_html, re.DOTALL)
+        team1_bans = []
+        team2_bans = []
+        if bans_cols:
+            team1_bans = re.findall(r'bannedChampion[^>]*tooltip="([^"]+)"', bans_cols[0])
+        if len(bans_cols) > 1:
+            team2_bans = re.findall(r'bannedChampion[^>]*tooltip="([^"]+)"', bans_cols[1])
+
+        return MatchDetails(
+            team1_players=team1_players,
+            team2_players=team2_players,
+            team1_result=team1_result,
+            team2_result=team2_result,
+            team1_bans=team1_bans,
+            team2_bans=team2_bans,
+        )
 
     async def fetch_matches(self, summoner: SummonerConfig) -> List[MatchResult]:
         """Fetch and parse matches for a single summoner (semaphore-limited).
