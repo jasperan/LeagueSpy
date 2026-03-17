@@ -171,6 +171,24 @@ class LeagueOfGraphsScraper:
         m = re.search(r'gameDate[^>]*>\s*([^<]+?)\s*<', row)
         return m.group(1).strip() if m else "Unknown"
 
+    def parse_in_game_status(self, html: str) -> dict:
+        """Check if the summoner page shows an active game indicator."""
+        in_game = "current-game" in html
+        champion = None
+        if in_game:
+            m = re.search(r'current-game.*?alt="([^"]+)"', html, re.DOTALL)
+            if m:
+                champion = m.group(1)
+        return {"in_game": in_game, "champion": champion}
+
+    async def check_in_game(self, summoner) -> dict:
+        """Fetch a summoner page and check if they're currently in game."""
+        async with self.sem:
+            html = await self._fetch_page_html(summoner.profile_url)
+        if not html:
+            return {"in_game": False, "champion": None}
+        return self.parse_in_game_status(html)
+
     def parse_matches(self, html: str, summoner: SummonerConfig) -> List[MatchResult]:
         rows = self._parse_rows(html)
         matches: List[MatchResult] = []

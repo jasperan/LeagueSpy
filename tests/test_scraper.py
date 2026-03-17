@@ -508,3 +508,29 @@ async def test_start_and_stop():
         mock_ctx.close.assert_called_once()
         mock_browser.close.assert_called_once()
         mock_pw.stop.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# In-game detection
+# ---------------------------------------------------------------------------
+
+
+class TestCheckInGame:
+    def test_detects_in_game(self):
+        scraper = LeagueOfGraphsScraper()
+        html = '<div class="current-game"><span>In Game</span><img alt="Yasuo"></div>'
+        result = scraper.parse_in_game_status(html)
+        assert result is not None
+        assert result["in_game"] is True
+
+    def test_detects_not_in_game(self):
+        scraper = LeagueOfGraphsScraper()
+        result = scraper.parse_in_game_status(_FULL_TABLE_HTML)
+        assert result is not None
+        assert result["in_game"] is False
+
+    def test_extracts_champion_from_game_banner(self):
+        scraper = LeagueOfGraphsScraper()
+        html = '<div class="current-game"><span>In Game</span><img alt="Yasuo"></div>'
+        result = scraper.parse_in_game_status(html)
+        assert result["champion"] == "Yasuo"
