@@ -1,0 +1,208 @@
+"""Discord slash commands for LeagueSpy (/spy group)."""
+
+import logging
+import discord
+from discord import app_commands
+from discord.ext import commands
+from src.models import SummonerConfig
+
+logger = logging.getLogger("leaguespy.commands")
+
+
+class SpyCog(commands.Cog):
+    """Slash commands under the /spy group."""
+
+    def __init__(self, bot):
+        self.bot = bot
+
+    spy = app_commands.Group(name="spy", description="LeagueSpy commands")
+
+    @spy.command(name="add", description="Add a summoner to tracking")
+    @app_commands.describe(slug="Summoner URL slug", player_name="Display name", region="Region (default: config)")
+    async def _add_summoner(self, interaction: discord.Interaction, slug: str, player_name: str, region: str = None):
+        if region is None:
+            region = self.bot.config.get("scraping", {}).get("region", "euw")
+        existing = self.bot.db.get_summoner_id_by_slug(slug)
+        if existing:
+            await interaction.response.send_message(f"**{slug}** ya esta siendo rastreado.", ephemeral=True)
+            return
+        db_id = self.bot.db.get_or_create_summoner(player_name, slug, region)
+        summoner = SummonerConfig(player_name=player_name, slug=slug, region=region)
+        self.bot.summoners.append(summoner)
+        self.bot.summoner_db_ids[slug] = db_id
+        await interaction.response.send_message(
+            f"Rastreando a **{player_name}** ({slug}) en {region.upper()}.", ephemeral=True,
+        )
+        logger.info("Added summoner %s (%s) via slash command", player_name, slug)
+
+    @spy.command(name="remove", description="Stop tracking a summoner")
+    @app_commands.describe(slug="Summoner URL slug to remove")
+    async def _remove_summoner(self, interaction: discord.Interaction, slug: str):
+        db_id = self.bot.db.get_summoner_id_by_slug(slug)
+        if not db_id:
+            await interaction.response.send_message(f"**{slug}** no esta siendo rastreado.", ephemeral=True)
+            return
+        self.bot.db.deactivate_summoner(db_id)
+        self.bot.summoners = [s for s in self.bot.summoners if s.slug != slug]
+        self.bot.summoner_db_ids.pop(slug, None)
+        await interaction.response.send_message(f"Dejando de rastrear **{slug}**.", ephemeral=True)
+        logger.info("Removed summoner %s via slash command", slug)
+
+    @spy.command(name="stats", description="Show player stats")
+    @app_commands.describe(player="Player name")
+    async def _stats(self, interaction: discord.Interaction, player: str = None):
+        await interaction.response.defer()
+        if player:
+            ids = self.bot.db.get_all_summoner_ids_for_player(player)
+        else:
+            ids = list(self.bot.summoner_db_ids.values())
+        if not ids:
+            await interaction.followup.send("No se encontro el jugador.", ephemeral=True)
+            return
+        embeds = []
+        for sid in ids:
+            stats = self.bot.db.get_player_stats(sid)
+            if stats["total_games"] == 0:
+                continue
+            streak, lw, ll = self.bot.db.get_streak(sid)
+            p_name = player or "Unknown"
+            for s in self.bot.summoners:
+                if self.bot.summoner_db_ids.get(s.slug) == sid:
+                    p_name = s.player_name
+                    break
+            win_rate = round(stats["wins"] / stats["total_games"] * 100, 1)
+            streak_str = f"+{streak}" if streak > 0 else str(streak)
+            embed = discord.Embed(title=f"Stats: {p_name}", colour=discord.Colour.gold())
+            embed.add_field(name="Partidas", value=str(stats["total_games"]), inline=True)
+            embed.add_field(name="Win Rate", value=f"{win_rate}%", inline=True)
+            embed.add_field(name="Racha", value=streak_str, inline=True)
+            embed.add_field(
+                name="KDA Medio",
+                value=f"{stats['avg_kills']}/{stats['avg_deaths']}/{stats['avg_assists']}",
+                inline=True,
+            )
+            embed.add_field(name="Mejor Racha W", value=str(lw), inline=True)
+            embed.add_field(name="Peor Racha L", value=str(ll), inline=True)
+            embeds.append(embed)
+        if embeds:
+            await interaction.followup.send(embeds=embeds[:10])
+        else:
+            await interaction.followup.send("Sin datos todavia.", ephemeral=True)
+
+    @spy.command(name="leaderboard", description="Group rankings by win rate")
+    async def _leaderboard(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        rows = self.bot.db.get_leaderboard(min_games=10)
+        if not rows:
+            await interaction.followup.send(
+                "No hay suficientes datos (min 10 partidas).", ephemeral=True,
+            )
+            return
+        embed = discord.Embed(title="Clasificacion LeagueSpy", colour=discord.Colour.gold())
+        for i, row in enumerate(rows):
+            wr = round(row["wins"] / row["total_games"] * 100, 1)
+            streak = row["current_streak"]
+            streak_str = f"+{streak}" if streak > 0 else str(streak)
+            medal = ["\U0001f947", "\U0001f948", "\U0001f949"][i] if i < 3 else f"#{i+1}"
+            embed.add_field(
+                name=f"{medal} {row['player_name']}",
+                value=f"{wr}% WR | {row['total_games']}G | Racha: {streak_str}",
+                inline=False,
+            )
+        await interaction.followup.send(embed=embed)
+
+    @spy.command(name="roast", description="Roast a player on demand")
+    @app_commands.describe(player="Player name to roast")
+    async def _roast_cmd(self, interaction: discord.Interaction, player: str):
+        await interaction.response.defer()
+        ids = self.bot.db.get_all_summoner_ids_for_player(player)
+        if not ids:
+            await interaction.followup.send(f"No conozco a **{player}**.", ephemeral=True)
+            return
+        recent = []
+        for sid in ids:
+            recent.extend(self.bot.db.get_recent_matches(sid, limit=5))
+        if not recent:
+            await interaction.followup.send(
+                f"**{player}** no tiene partidas registradas.", ephemeral=True,
+            )
+            return
+        roast_cog = self.bot.get_cog("RoastCog")
+        if not roast_cog:
+            await interaction.followup.send("El motor de roasts no esta activo.", ephemeral=True)
+            return
+        wins = sum(1 for m in recent if m["win"])
+        losses = len(recent) - wins
+        avg_deaths = round(sum(m["deaths"] for m in recent) / len(recent), 1)
+        champs = ", ".join(set(m["champion"] for m in recent))
+        from src.cogs.roast import SYSTEM_PROMPT
+        user_prompt = (
+            f"Hazle un roast a {player}. Ultimas {len(recent)} partidas: "
+            f"{wins}W/{losses}L, media de {avg_deaths} muertes, juega: {champs}."
+        )
+        roast = await roast_cog.llm.generate(SYSTEM_PROMPT, user_prompt)
+        if roast:
+            await interaction.followup.send(roast)
+        else:
+            await interaction.followup.send(
+                "El cerebro de roasts esta desconectado.", ephemeral=True,
+            )
+
+    @spy.command(name="champions", description="Champion mastery breakdown")
+    @app_commands.describe(player="Player name")
+    async def _champions(self, interaction: discord.Interaction, player: str):
+        await interaction.response.defer()
+        ids = self.bot.db.get_all_summoner_ids_for_player(player)
+        if not ids:
+            await interaction.followup.send(f"No conozco a **{player}**.", ephemeral=True)
+            return
+        all_champs = []
+        for sid in ids:
+            all_champs.extend(self.bot.db.get_champion_stats(sid))
+        if not all_champs:
+            await interaction.followup.send("Sin datos.", ephemeral=True)
+            return
+        embed = discord.Embed(title=f"Campeones de {player}", colour=discord.Colour.blue())
+        for c in all_champs[:10]:
+            wr = round(c["wins"] / c["games"] * 100, 1) if c["games"] > 0 else 0
+            embed.add_field(
+                name=c["champion"],
+                value=f"{c['games']}G | {wr}% WR | {c['avg_kills']}/{c['avg_deaths']}/{c['avg_assists']}",
+                inline=False,
+            )
+        await interaction.followup.send(embed=embed)
+
+    @spy.command(name="h2h", description="Head-to-head record")
+    @app_commands.describe(player1="First player", player2="Second player")
+    async def _h2h(self, interaction: discord.Interaction, player1: str, player2: str):
+        await interaction.response.defer()
+        ids_a = self.bot.db.get_all_summoner_ids_for_player(player1)
+        ids_b = self.bot.db.get_all_summoner_ids_for_player(player2)
+        if not ids_a or not ids_b:
+            await interaction.followup.send("No se encontraron ambos jugadores.", ephemeral=True)
+            return
+        all_matches = []
+        for a in ids_a:
+            for b in ids_b:
+                all_matches.extend(self.bot.db.get_h2h_record(a, b))
+        if not all_matches:
+            await interaction.followup.send(
+                f"No hay partidas compartidas entre **{player1}** y **{player2}**.\n"
+                "Solo cuenta desde que ambos son rastreados.",
+                ephemeral=True,
+            )
+            return
+        a_wins = sum(1 for m in all_matches if m["a_win"])
+        b_wins = sum(1 for m in all_matches if m["b_win"])
+        embed = discord.Embed(title=f"{player1} vs {player2}", colour=discord.Colour.purple())
+        embed.add_field(name=player1, value=f"{a_wins} victorias", inline=True)
+        embed.add_field(name="VS", value=f"{len(all_matches)} partidas", inline=True)
+        embed.add_field(name=player2, value=f"{b_wins} victorias", inline=True)
+        recent_text = ""
+        for m in all_matches[:5]:
+            winner = player1 if m["a_win"] else player2
+            recent_text += f"{m['a_champ']} vs {m['b_champ']} -> **{winner}**\n"
+        if recent_text:
+            embed.add_field(name="Ultimos enfrentamientos", value=recent_text, inline=False)
+        embed.set_footer(text="Desde que ambos son rastreados.")
+        await interaction.followup.send(embed=embed)
