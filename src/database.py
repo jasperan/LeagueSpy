@@ -94,5 +94,51 @@ class Database:
             ]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
 
+    def update_streak(self, summoner_id: int, win: bool) -> int:
+        """Update streak counters after a match. Returns the new current_streak."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT current_streak FROM summoners WHERE id = :sid",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            current = row[0] if row else 0
+
+            if win:
+                new_streak = current + 1 if current > 0 else 1
+            else:
+                new_streak = current - 1 if current < 0 else -1
+
+            abs_streak = abs(new_streak)
+            if win:
+                cur.execute(
+                    """UPDATE summoners
+                       SET current_streak = :streak,
+                           longest_win_streak = GREATEST(longest_win_streak, :abs)
+                       WHERE id = :sid""",
+                    {"streak": new_streak, "abs": abs_streak, "sid": summoner_id},
+                )
+            else:
+                cur.execute(
+                    """UPDATE summoners
+                       SET current_streak = :streak,
+                           longest_loss_streak = GREATEST(longest_loss_streak, :abs)
+                       WHERE id = :sid""",
+                    {"streak": new_streak, "abs": abs_streak, "sid": summoner_id},
+                )
+            self.conn.commit()
+            return new_streak
+
+    def get_streak(self, summoner_id: int) -> tuple[int, int, int]:
+        """Return (current_streak, longest_win_streak, longest_loss_streak)."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT current_streak, longest_win_streak, longest_loss_streak
+                   FROM summoners WHERE id = :sid""",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            return (row[0], row[1], row[2]) if row else (0, 0, 0)
+
     def close(self):
         self.conn.close()

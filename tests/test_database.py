@@ -74,3 +74,26 @@ def test_get_matches_since(mock_db):
     assert results[0]["champion"] == "Jinx"
     assert results[0]["win"] == 1
     assert results[1]["win"] == 0
+
+
+def test_update_streak_after_win(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (0,)
+    db.update_streak(1, win=True)
+    assert cursor.execute.call_count == 2
+
+
+def test_update_streak_after_loss(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (0,)
+    db.update_streak(1, win=False)
+    assert cursor.execute.call_count == 2
+
+
+def test_get_streak(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (-3, 5, 4)
+    streak, longest_w, longest_l = db.get_streak(1)
+    assert streak == -3
+    assert longest_w == 5
+    assert longest_l == 4
