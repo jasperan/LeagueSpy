@@ -1,5 +1,5 @@
 import discord
-from src.embeds import build_match_announcement, build_match_embed
+from src.embeds import build_match_announcement
 from src.models import MatchResult, SummonerConfig
 
 
@@ -23,66 +23,58 @@ def _make_match(**overrides):
     return MatchResult(**defaults)
 
 
-def test_build_win_embed():
-    summoner = _make_summoner()
-    match = _make_match()
-    embed = build_match_embed(summoner, match)
-    assert isinstance(embed, discord.Embed)
+def test_win_announcement():
+    payload = build_match_announcement(_make_summoner(), _make_match())
+    embed = payload["embed"]
     assert embed.colour == discord.Colour.green()
     assert "VICTORY" in embed.title
+    assert "jasper" in embed.title
+    assert "Jinx" in embed.description
+    assert "8/2/5" in embed.description
 
 
-def test_build_loss_embed():
-    summoner = _make_summoner()
-    match = _make_match(win=False)
-    embed = build_match_embed(summoner, match)
+def test_loss_announcement():
+    payload = build_match_announcement(_make_summoner(), _make_match(win=False))
+    embed = payload["embed"]
     assert embed.colour == discord.Colour.red()
     assert "DEFEAT" in embed.title
 
 
-def test_embed_has_champion_thumbnail():
-    summoner = _make_summoner()
-    match = _make_match()
-    embed = build_match_embed(summoner, match)
+def test_no_scoreboard_uses_thumbnail():
+    payload = build_match_announcement(_make_summoner(), _make_match())
+    embed = payload["embed"]
     assert embed.thumbnail is not None
     assert "Jinx" in embed.thumbnail.url
-
-
-def test_embed_thumbnail_normalizes_champion_name():
-    summoner = _make_summoner()
-    match = _make_match(champion="Lee Sin")
-    embed = build_match_embed(summoner, match)
-    assert "LeeSin" in embed.thumbnail.url
-
-
-def test_announcement_without_commentary():
-    summoner = _make_summoner()
-    match = _make_match()
-    payload = build_match_announcement(summoner, match)
-    assert "content" not in payload
-    assert isinstance(payload["embed"], discord.Embed)
-
-
-def test_announcement_with_commentary():
-    summoner = _make_summoner()
-    match = _make_match()
-    payload = build_match_announcement(summoner, match, commentary="Menuda exhibicion.")
-    assert payload["content"] == "Menuda exhibicion."
-    assert isinstance(payload["embed"], discord.Embed)
-
-
-def test_announcement_with_scoreboard_image():
-    summoner = _make_summoner()
-    match = _make_match()
-    fake_png = b"\x89PNG fake image bytes"
-    payload = build_match_announcement(summoner, match, scoreboard_image=fake_png)
-    assert "file" in payload
-    assert isinstance(payload["file"], discord.File)
-    assert payload["embed"].image.url == "attachment://scoreboard.png"
-
-
-def test_announcement_without_scoreboard_has_no_file():
-    summoner = _make_summoner()
-    match = _make_match()
-    payload = build_match_announcement(summoner, match)
     assert "file" not in payload
+
+
+def test_scoreboard_replaces_thumbnail():
+    payload = build_match_announcement(
+        _make_summoner(), _make_match(), scoreboard_image=b"\x89PNG fake",
+    )
+    embed = payload["embed"]
+    assert embed.image.url == "attachment://scoreboard.png"
+    assert embed.thumbnail.url is discord.utils.MISSING or embed.thumbnail.url is None
+    assert isinstance(payload["file"], discord.File)
+
+
+def test_commentary_included():
+    payload = build_match_announcement(
+        _make_summoner(), _make_match(), commentary="Nice game!",
+    )
+    assert payload["content"] == "Nice game!"
+
+
+def test_no_commentary_no_content():
+    payload = build_match_announcement(_make_summoner(), _make_match())
+    assert "content" not in payload
+
+
+def test_footer_shows_played_at():
+    payload = build_match_announcement(_make_summoner(), _make_match())
+    assert "2026-03-15 14:32" in payload["embed"].footer.text
+
+
+def test_embed_links_to_profile():
+    payload = build_match_announcement(_make_summoner(), _make_match())
+    assert "leagueofgraphs.com" in payload["embed"].url
