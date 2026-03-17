@@ -394,6 +394,23 @@ class LeagueOfGraphsScraper:
             team2_bans=team2_bans,
         )
 
+    async def fetch_match_details(self, match_url: str, region: str) -> MatchDetails | None:
+        """Fetch and parse a match detail page (semaphore-limited).
+
+        Args:
+            match_url: Path like /match/euw/7782016191#participant10
+            region: Region string (unused but kept for future routing)
+
+        Returns:
+            MatchDetails if the page parsed successfully, None otherwise.
+        """
+        full_url = f"https://www.leagueofgraphs.com{match_url}"
+        async with self.sem:
+            html = await self._fetch_page_html(full_url)
+        if html is None:
+            return None
+        return self.parse_match_details(html)
+
     async def fetch_matches(self, summoner: SummonerConfig) -> List[MatchResult]:
         """Fetch and parse matches for a single summoner (semaphore-limited).
 

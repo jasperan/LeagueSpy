@@ -763,6 +763,23 @@ class TestParseMatchDetails:
         assert result is None
 
 
+@pytest.mark.asyncio
+async def test_fetch_match_details_returns_details():
+    scraper = LeagueOfGraphsScraper()
+    scraper._fetch_page_html = AsyncMock(return_value=_MATCH_DETAIL_HTML)
+    details = await scraper.fetch_match_details("/match/euw/7782016191#participant10", "euw")
+    assert details is not None
+    assert len(details.team1_players) > 0
+
+
+@pytest.mark.asyncio
+async def test_fetch_match_details_returns_none_on_failure():
+    scraper = LeagueOfGraphsScraper()
+    scraper._fetch_page_html = AsyncMock(return_value=None)
+    details = await scraper.fetch_match_details("/match/euw/123#participant1", "euw")
+    assert details is None
+
+
 class TestParseMatchDetailsRealPage:
     """Tests against the real match page HTML saved at /tmp/match_page.html."""
 
