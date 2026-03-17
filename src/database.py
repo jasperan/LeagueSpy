@@ -187,5 +187,55 @@ class Database:
                     "game_duration", "game_mode", "played_at"]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
 
+    def check_rivalry(self, match_id: str, summoner_id: int) -> dict | None:
+        """Check if another tracked summoner was in this match."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, s.summoner_slug, s.region, m.win
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   WHERE m.match_id = :mid AND m.summoner_id != :sid
+                   FETCH FIRST 1 ROWS ONLY""",
+                {"mid": match_id, "sid": summoner_id},
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            return {"summoner_id": row[0], "player_name": row[1],
+                    "summoner_slug": row[2], "region": row[3], "win": row[4]}
+
+    def get_h2h_record(self, summoner_id_a: int, summoner_id_b: int) -> list[dict]:
+        """Return all matches where both summoners participated."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT ma.match_id, ma.win as a_win, mb.win as b_win,
+                          ma.champion as a_champ, mb.champion as b_champ
+                   FROM matches ma JOIN matches mb ON ma.match_id = mb.match_id
+                   WHERE ma.summoner_id = :a AND mb.summoner_id = :b
+                   ORDER BY ma.created_at DESC""",
+                {"a": summoner_id_a, "b": summoner_id_b},
+            )
+            cols = ["match_id", "a_win", "b_win", "a_champ", "b_champ"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def store_roast(self, summoner_id: int, match_id: str, roast_text: str, trigger_type: str) -> None:
+        """Insert a roast into history."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """INSERT INTO roast_history (summoner_id, match_id, roast_text, trigger_type)
+                   VALUES (:sid, :mid, :txt, :ttype)""",
+                {"sid": summoner_id, "mid": match_id, "txt": roast_text, "ttype": trigger_type},
+            )
+            self.conn.commit()
+
+    def get_recent_roasts(self, summoner_id: int, limit: int = 5) -> list[str]:
+        """Return the most recent roast texts for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT roast_text FROM roast_history WHERE summoner_id = :sid
+                   ORDER BY created_at DESC FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            return [row[0] for row in cur.fetchall()]
+
     def close(self):
         self.conn.close()

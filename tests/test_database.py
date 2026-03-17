@@ -133,3 +133,41 @@ def test_get_recent_matches(mock_db):
     result = db.get_recent_matches(1, limit=5)
     assert len(result) == 1
     assert result[0]["match_id"] == "EUW1-100"
+
+
+def test_check_rivalry_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (2, "friend1", "friend1-tag", "euw", 0)
+    result = db.check_rivalry("EUW1-100", summoner_id=1)
+    assert result is not None
+    assert result["player_name"] == "friend1"
+
+
+def test_check_rivalry_not_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    result = db.check_rivalry("EUW1-100", summoner_id=1)
+    assert result is None
+
+
+def test_get_h2h_record(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("EUW1-100", 1, 0, "Jinx", "Leona"),
+    ]
+    result = db.get_h2h_record(summoner_id_a=1, summoner_id_b=2)
+    assert len(result) == 1
+
+
+def test_store_roast(mock_db):
+    db, cursor = mock_db
+    db.store_roast(1, "EUW1-100", "Vaya tela.", "single_loss")
+    cursor.execute.assert_called_once()
+
+
+def test_get_recent_roasts(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [("Roast one.",), ("Roast two.",)]
+    result = db.get_recent_roasts(1, limit=5)
+    assert len(result) == 2
+    assert result[0] == "Roast one."
