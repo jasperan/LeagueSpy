@@ -11,7 +11,7 @@ from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_announcement
 from src.commentary import build_commentary
-from src.daily_summary import group_by_player, build_summary_gif
+from src.daily_summary import group_by_player, build_summary_image
 from src.models import SummonerConfig, MatchDetails
 
 logger = logging.getLogger("leaguespy")
@@ -208,21 +208,22 @@ class LeagueSpyBot(commands.Bot):
                 return
 
             grouped = group_by_player(matches)
-            gif_buf = await asyncio.get_event_loop().run_in_executor(
-                None, build_summary_gif, grouped,
+            result = await asyncio.get_event_loop().run_in_executor(
+                None, build_summary_image, grouped,
             )
-            if gif_buf is None:
+            if result is None:
                 return
 
+            img_buf, filename = result
             channel = self.get_channel(self.channel_id)
             if channel is None:
                 channel = await self.fetch_channel(self.channel_id)
 
             await channel.send(
                 content="**8-Hour Match Summary**",
-                file=discord.File(gif_buf, filename="leaguespy_summary.gif"),
+                file=discord.File(img_buf, filename=filename),
             )
-            logger.info("Summary GIF sent (%d players, %d matches)", len(grouped), len(matches))
+            logger.info("Summary sent as %s (%d players, %d matches)", filename, len(grouped), len(matches))
         except Exception as e:
             logger.error("Summary generation failed: %s", e)
 

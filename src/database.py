@@ -87,7 +87,8 @@ class Database:
             cur.execute(
                 """SELECT s.id, s.player_name, s.summoner_slug, s.region,
                           m.match_id, m.champion, m.win, m.kills, m.deaths,
-                          m.assists, m.game_duration, m.game_mode, m.played_at
+                          m.assists, m.game_duration, m.game_mode, m.played_at,
+                          m.cs, m.gold, m.kill_participation, m.vision_score
                    FROM matches m
                    JOIN summoners s ON s.id = m.summoner_id
                    WHERE m.created_at >= TO_TIMESTAMP(:ts, 'YYYY-MM-DD HH24:MI:SS')
@@ -98,6 +99,7 @@ class Database:
                 "summoner_id", "player_name", "summoner_slug", "region",
                 "match_id", "champion", "win", "kills", "deaths",
                 "assists", "game_duration", "game_mode", "played_at",
+                "cs", "gold", "kill_participation", "vision_score",
             ]
             return [dict(zip(columns, row)) for row in cur.fetchall()]
 
