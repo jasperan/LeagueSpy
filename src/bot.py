@@ -11,6 +11,7 @@ from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_announcement
 from src.commentary import build_commentary
+from src.match_image import render_scoreboard
 from src.daily_summary import group_by_player, build_summary_image
 from src.models import SummonerConfig, MatchDetails
 
@@ -159,7 +160,10 @@ class LeagueSpyBot(commands.Bot):
                             except Exception as e:
                                 logger.warning("Failed to fetch match details for %s: %s", match.match_id, e)
                         commentary = await build_commentary(summoner, match)
-                        payload = build_match_announcement(summoner, match, commentary)
+                        scoreboard_img = None
+                        if match.details:
+                            scoreboard_img = render_scoreboard(match.details, summoner.slug)
+                        payload = build_match_announcement(summoner, match, commentary, scoreboard_img)
                         await channel.send(**payload)
                         self.db.insert_match(db_id, match)
                         self.db.mark_announced(db_id, match.match_id)
