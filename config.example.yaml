@@ -10,6 +10,18 @@ oracle:
 scraping:
   interval_minutes: 5
   region: "euw"  # default region, can be overridden per summoner
+  live_check_minutes: 2  # how often to check for in-game status
+
+llm:
+  base_url: "http://localhost:8000/v1"  # vLLM OpenAI-compatible endpoint
+  model: "qwen3.5:9b"
+  max_tokens: 200
+
+features:
+  roast: true
+  analytics: true
+  live_alerts: true
+  slash_commands: true
 
 players:
   - name: "jasper"
