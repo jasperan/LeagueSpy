@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.scraper import LeagueOfGraphsScraper, _KDA_RE, _MATCH_ID_RE, _DURATION_RE, _EPOCH_RE
+from src.scraper import LeagueOfGraphsScraper, _KDA_RE, _MATCH_ID_RE, _MATCH_URL_RE, _DURATION_RE, _EPOCH_RE
 from src.models import SummonerConfig, MatchResult
 
 
@@ -225,6 +225,22 @@ class TestExtractMatchId:
 
 
 # ---------------------------------------------------------------------------
+# _extract_match_url
+# ---------------------------------------------------------------------------
+
+
+class TestExtractMatchUrl:
+    def test_extracts_full_match_url(self):
+        scraper = LeagueOfGraphsScraper()
+        result = scraper._extract_match_url(_MATCH_ROW_WIN)
+        assert result == "/match/euw/7781974656#participant5"
+
+    def test_returns_none_on_no_link(self):
+        scraper = LeagueOfGraphsScraper()
+        assert scraper._extract_match_url("<div>no link here</div>") is None
+
+
+# ---------------------------------------------------------------------------
 # _extract_duration
 # ---------------------------------------------------------------------------
 
@@ -308,6 +324,7 @@ class TestParseMatches:
         assert win_match.kda == "2/1/20"
         assert win_match.game_duration == "19min 48s"
         assert win_match.game_mode == "Ranked Solo/Duo"
+        assert win_match.match_url == "/match/euw/7781974656#participant5"
 
     def test_parses_loss_match(self):
         scraper = LeagueOfGraphsScraper()

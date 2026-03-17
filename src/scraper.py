@@ -18,6 +18,9 @@ _KDA_RE = re.compile(
 # Match ID from href: /match/euw/7781974656#participant5
 _MATCH_ID_RE = re.compile(r'/match/\w+/(\d+)')
 
+# Full match URL path including participant anchor: /match/euw/7781974656#participant5
+_MATCH_URL_RE = re.compile(r'(/match/\w+/\d+#participant\d+)')
+
 # Duration: "19min 48s" or "32min 1s"
 _DURATION_RE = re.compile(r'(\d+min\s*\d+s)')
 
@@ -140,6 +143,10 @@ class LeagueOfGraphsScraper:
         m = _MATCH_ID_RE.search(row)
         return m.group(1) if m else None
 
+    def _extract_match_url(self, row: str) -> str | None:
+        m = _MATCH_URL_RE.search(row)
+        return m.group(1) if m else None
+
     def _extract_champion(self, row: str) -> str:
         m = re.search(r'alt="([^"]+)"', row)
         return m.group(1) if m else "Unknown"
@@ -209,6 +216,7 @@ class LeagueOfGraphsScraper:
                     game_duration=self._extract_duration(row),
                     game_mode=self._extract_game_mode(row),
                     played_at=self._extract_played_at(row),
+                    match_url=self._extract_match_url(row),
                 ))
             except Exception as e:
                 logger.error("Failed to parse match %s: %s", match_id, e)
