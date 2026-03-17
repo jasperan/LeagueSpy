@@ -8,6 +8,7 @@ build/
 bot.log
 .agents/
 .claude/
+CLAUDE.md
 .crush/
 .openhands/
 .serena/
