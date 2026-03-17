@@ -12,7 +12,7 @@ from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_announcement
 from src.commentary import build_commentary
 from src.daily_summary import group_by_player, build_summary_gif
-from src.models import SummonerConfig
+from src.models import SummonerConfig, MatchDetails
 
 logger = logging.getLogger("leaguespy")
 
@@ -148,6 +148,16 @@ class LeagueSpyBot(commands.Bot):
                 new_count = 0
                 for match in matches:
                     if not self.db.is_match_known(db_id, match.match_id):
+                        if match.match_url:
+                            try:
+                                details = await self.scraper.fetch_match_details(
+                                    match.match_url, summoner.region,
+                                )
+                                if details:
+                                    match.details = details
+                                    self._enrich_match_from_details(match, summoner, details)
+                            except Exception as e:
+                                logger.warning("Failed to fetch match details for %s: %s", match.match_id, e)
                         commentary = await build_commentary(summoner, match)
                         payload = build_match_announcement(summoner, match, commentary)
                         await channel.send(**payload)
@@ -219,6 +229,18 @@ class LeagueSpyBot(commands.Bot):
     @summary_check.before_loop
     async def before_summary(self):
         await self.wait_until_ready()
+
+    def _enrich_match_from_details(self, match, summoner, details):
+        """Copy enhanced stats from match details into the MatchResult."""
+        slug_as_name = summoner.slug.replace("-", "#").lower()
+        for player in details.team1_players + details.team2_players:
+            player_name_clean = player.summoner_name.lower().replace(" ", "")
+            if player_name_clean == slug_as_name.replace(" ", ""):
+                match.cs = player.cs
+                match.gold = player.gold
+                match.kill_participation = player.kill_participation
+                match.vision_score = player.vision_score
+                break
 
     async def close(self):
         await self.scraper.stop()
