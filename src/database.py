@@ -237,5 +237,92 @@ class Database:
             )
             return [row[0] for row in cur.fetchall()]
 
+    def get_leaderboard(self, min_games: int = 10) -> list[dict]:
+        """Return leaderboard sorted by win rate, filtered by minimum games."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, COUNT(*) as games, SUM(m.win) as wins,
+                          ROUND(AVG(m.kills), 1), ROUND(AVG(m.deaths), 1),
+                          ROUND(AVG(m.assists), 1), s.current_streak
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   GROUP BY s.id, s.player_name, s.current_streak
+                   HAVING COUNT(*) >= :min_g
+                   ORDER BY SUM(m.win) / COUNT(*) DESC""",
+                {"min_g": min_games},
+            )
+            cols = ["summoner_id", "player_name", "total_games", "wins",
+                    "avg_kills", "avg_deaths", "avg_assists", "current_streak"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_weekly_stats(self) -> list[dict]:
+        """Return per-player stats for the last 7 days."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT s.id, s.player_name, s.summoner_slug,
+                          COUNT(*) as games, SUM(m.win) as wins,
+                          ROUND(AVG(m.kills), 1), ROUND(AVG(m.deaths), 1),
+                          ROUND(AVG(m.assists), 1),
+                          (SELECT champion FROM matches m2
+                           WHERE m2.summoner_id = s.id
+                             AND m2.created_at >= SYSTIMESTAMP - INTERVAL '7' DAY
+                           GROUP BY champion ORDER BY COUNT(*) DESC
+                           FETCH FIRST 1 ROWS ONLY) as top_champ
+                   FROM matches m JOIN summoners s ON s.id = m.summoner_id
+                   WHERE m.created_at >= SYSTIMESTAMP - INTERVAL '7' DAY
+                   GROUP BY s.id, s.player_name, s.summoner_slug
+                   ORDER BY SUM(m.win) / COUNT(*) DESC""",
+            )
+            cols = ["summoner_id", "player_name", "summoner_slug", "games", "wins",
+                    "avg_kills", "avg_deaths", "avg_assists", "top_champion"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_summoner_id_by_slug(self, slug: str) -> int | None:
+        """Look up a summoner ID by their slug."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT id FROM summoners WHERE summoner_slug = :slug", {"slug": slug})
+            row = cur.fetchone()
+            return row[0] if row else None
+
+    def get_all_summoner_ids_for_player(self, player_name: str) -> list[int]:
+        """Return all summoner IDs belonging to a player (main + smurfs)."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT id FROM summoners WHERE player_name = :name", {"name": player_name})
+            return [row[0] for row in cur.fetchall()]
+
+    def deactivate_summoner(self, summoner_id: int) -> None:
+        """Remove a summoner from tracking."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM summoners WHERE id = :sid", {"sid": summoner_id})
+            self.conn.commit()
+
+    def truncate_live_games(self) -> None:
+        """Clear all live game records."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM live_games")
+            self.conn.commit()
+
+    def is_live_game(self, summoner_id: int) -> bool:
+        """Check if a summoner is currently in a live game."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM live_games WHERE summoner_id = :sid", {"sid": summoner_id})
+            return cur.fetchone() is not None
+
+    def set_live_game(self, summoner_id: int, champion: str | None, game_mode: str | None) -> None:
+        """Record that a summoner is in a live game."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """MERGE INTO live_games lg USING (SELECT :sid as sid FROM dual) src
+                   ON (lg.summoner_id = src.sid)
+                   WHEN NOT MATCHED THEN INSERT (summoner_id, champion, game_mode) VALUES (:sid, :champ, :gm)""",
+                {"sid": summoner_id, "champ": champion, "gm": game_mode},
+            )
+            self.conn.commit()
+
+    def clear_live_game(self, summoner_id: int) -> None:
+        """Remove the live game record for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM live_games WHERE summoner_id = :sid", {"sid": summoner_id})
+            self.conn.commit()
+
     def close(self):
         self.conn.close()

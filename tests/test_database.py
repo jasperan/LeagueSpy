@@ -171,3 +171,77 @@ def test_get_recent_roasts(mock_db):
     result = db.get_recent_roasts(1, limit=5)
     assert len(result) == 2
     assert result[0] == "Roast one."
+
+
+def test_get_leaderboard(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        (1, "jasper", 50, 30, 7.2, 2.5, 6.0, 3),
+    ]
+    result = db.get_leaderboard(min_games=10)
+    assert len(result) == 1
+    assert result[0]["player_name"] == "jasper"
+
+
+def test_get_weekly_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        (1, "jasper", "jasper-1971", 12, 8, 7.0, 2.1, 6.5, "Jinx"),
+    ]
+    result = db.get_weekly_stats()
+    assert len(result) == 1
+    assert result[0]["top_champion"] == "Jinx"
+
+
+def test_get_summoner_id_by_slug(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (42,)
+    assert db.get_summoner_id_by_slug("jasper-1971") == 42
+
+
+def test_get_summoner_id_by_slug_not_found(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    assert db.get_summoner_id_by_slug("nonexistent") is None
+
+
+def test_get_all_summoner_ids_for_player(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [(1,), (5,)]
+    assert db.get_all_summoner_ids_for_player("jasper") == [1, 5]
+
+
+def test_deactivate_summoner(mock_db):
+    db, cursor = mock_db
+    db.deactivate_summoner(1)
+    cursor.execute.assert_called_once()
+
+
+def test_truncate_live_games(mock_db):
+    db, cursor = mock_db
+    db.truncate_live_games()
+    cursor.execute.assert_called_once()
+
+
+def test_is_live_game_true(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (1,)
+    assert db.is_live_game(1) is True
+
+
+def test_is_live_game_false(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    assert db.is_live_game(1) is False
+
+
+def test_set_live_game(mock_db):
+    db, cursor = mock_db
+    db.set_live_game(1, "Yasuo", "Ranked")
+    cursor.execute.assert_called_once()
+
+
+def test_clear_live_game(mock_db):
+    db, cursor = mock_db
+    db.clear_live_game(1)
+    cursor.execute.assert_called_once()
