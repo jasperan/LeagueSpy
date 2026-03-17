@@ -2,19 +2,20 @@
 
 # LeagueSpy
 
-<p align="center"><b>Track your friends' League matches. Roast their disasters. Hype their pop-off wins.</b></p>
+<p align="center"><b>Track your friends' League matches. Roast their losses in Spanish. Crown the weekly champion.</b></p>
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg?style=for-the-badge)](https://www.python.org/downloads/)
 [![Oracle Database](https://img.shields.io/badge/Oracle-Database_Free-red.svg?style=for-the-badge)](https://www.oracle.com/database/free/)
 [![discord.py](https://img.shields.io/badge/discord.py-2.7+-5865F2.svg?style=for-the-badge)](https://discordpy.readthedocs.io/)
 [![Playwright](https://img.shields.io/badge/Playwright-stealth-2EAD33.svg?style=for-the-badge)](https://playwright.dev/)
+[![vLLM](https://img.shields.io/badge/vLLM-Qwen3.5:9B-orange.svg?style=for-the-badge)](https://docs.vllm.ai/)
 [![Pillow](https://img.shields.io/badge/Pillow-GIF_rendering-ff6f00.svg?style=for-the-badge)](https://python-pillow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-99_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-165_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
 
 </div>
 
-Discord bot that scrapes [leagueofgraphs.com](https://www.leagueofgraphs.com) for League of Legends match history and announces new games in your server. Tracks multiple players and all their smurf accounts from a single config file.
+Discord bot that scrapes [leagueofgraphs.com](https://www.leagueofgraphs.com) for League of Legends match history and announces new games in your server. Tracks multiple players and their smurf accounts, roasts losses in Spanish via a local LLM, detects rivalries, computes tilt scores, and posts weekly power rankings.
 
 ![LeagueSpy Architecture](assets/visual-explainer-hero.png)
 
@@ -24,7 +25,7 @@ Discord bot that scrapes [leagueofgraphs.com](https://www.leagueofgraphs.com) fo
 curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
 ```
 
-That clones the repo, creates a conda env, and installs everything. You'll just need to fill in `config.yaml`, set up Oracle DB, and pull the local Ollama model if you want the commentary feature.
+That clones the repo, creates a conda env, and installs everything. You'll just need to fill in `config.yaml`, set up Oracle DB, and start vLLM if you want the roast engine.
 
 <details><summary>Override install location</summary>
 
@@ -36,15 +37,40 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 
 ## Features
 
+### Core
 - **Stealth scraping** via Playwright with bot-detection evasion (spoofed navigator, cookie consent handling, concurrent tab pool)
 - **Champion icon thumbnails** on every match embed, pulled from Riot's [Data Dragon CDN](https://developer.riotgames.com/docs/lol#data-dragon)
 - **Rich Discord embeds** with champion, KDA, win/loss, game mode, duration, and profile link
-- **Spanish roast/praise commentary** for extreme matches, generated locally with Ollama + `qwen3.5:9b` and posted above the embed
 - **8-hour summary GIF** sent at 00:00, 08:00, and 16:00 Madrid time. Per-player animated cards showing net W/L, record, and champion icons played
 - **Multi-account tracking** for players with multiple summoner accounts (smurfs)
 - **Oracle Database** storage for match history and deduplication
 - **Configurable polling** interval (default: 5 minutes)
 - **Per-summoner region** support (EUW, NA, KR, etc.)
+
+### Spanish Roast Engine (v2)
+- **Auto-roasts on every loss** via vLLM + Qwen3.5:9B with thinking mode disabled. Fast, local, zero API costs.
+- **Escalating intensity**: mild jabs on single losses, maximum savagery on 3+ loss streaks, special triggers for 0-kill games
+- **Backhanded compliments** on perfect KDA games ("seguro los rivales eran bots")
+- **Deduplication**: stores roast history in Oracle DB, feeds last 5 roasts to the LLM with "no repitas" so it never repeats itself
+
+### Slash Commands (v2)
+- `/spy add <slug> <name> [region]` -- add a summoner to tracking without editing config
+- `/spy remove <slug>` -- stop tracking a summoner
+- `/spy stats [player]` -- on-demand stats card (W/L, streak, KDA, tilt score)
+- `/spy leaderboard` -- group rankings sorted by win rate (min 10 games)
+- `/spy roast <player>` -- on-demand LLM roast using recent match history
+- `/spy champions <player>` -- champion mastery breakdown (top 10, win rates, avg KDA)
+- `/spy h2h <player1> <player2>` -- head-to-head record with last 5 encounters
+
+### Analytics (v2)
+- **Tilt score** (0-100): composite metric from loss streak, KDA decay, death rate, and surrender frequency. Shown in `/spy stats` and fed to the roast engine for maximum accuracy.
+- **Weekly power rankings**: Pillow-rendered PNG posted every Monday at 10:00 Madrid time. Crown for #1, clown for last place.
+- **Rivalry auto-detection**: when two tracked players appear in the same match on opposite teams, the bot posts a special rivalry embed with the all-time head-to-head record
+
+### Live Game Alerts (v2)
+- **In-game detection**: polls summoner profiles every 2 minutes for the "currently playing" indicator
+- **Blue alert embeds** when someone starts a game, with champion icon if detectable
+- **No duplicate alerts**: state tracked in Oracle DB, cleared when the game ends
 
 ## Discord Embed Preview
 
@@ -56,7 +82,7 @@ Green sidebar for wins. Red for losses. Each embed shows the champion icon and l
 
 - Python 3.12+
 - [Conda](https://docs.conda.io/) (recommended) or virtualenv
-- [Ollama](https://ollama.com/) running locally for the commentary feature
+- [vLLM](https://docs.vllm.ai/) serving Qwen3.5:9B (for the roast engine; optional, bot works without it)
 - Oracle Database (Free tier works fine)
 - Discord bot token ([create one here](https://discord.com/developers/applications))
 
@@ -71,10 +97,7 @@ conda create -n leaguespy python=3.12 -y
 conda activate leaguespy
 pip install -r requirements.txt
 playwright install chromium
-ollama pull qwen3.5:9b
 ```
-
-If Ollama is not already running on your machine, start it before launching the bot.
 
 **2. Set up Oracle Database**
 
@@ -82,9 +105,18 @@ Create the `leaguespy` user in your Oracle instance, then run the schema:
 
 ```bash
 sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/setup_db.sql
+sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/migrate_v2.sql
 ```
 
-**3. Configure**
+**3. Start vLLM (optional, for roast engine)**
+
+```bash
+vllm serve Qwen/Qwen3.5-9B --port 8000
+```
+
+The bot works without vLLM. The roast engine just stays silent if the endpoint is unavailable.
+
+**4. Configure**
 
 ```bash
 cp config.example.yaml config.yaml
@@ -104,7 +136,19 @@ oracle:
 
 scraping:
   interval_minutes: 5
-  region: "euw"  # default region
+  live_check_minutes: 2
+  region: "euw"
+
+llm:
+  base_url: "http://localhost:8000/v1"
+  model: "qwen3.5:9b"
+  max_tokens: 200
+
+features:
+  roast: true
+  analytics: true
+  live_alerts: true
+  slash_commands: true
 
 players:
   - name: "jasper"
@@ -113,9 +157,9 @@ players:
         region: "euw"
 ```
 
-Enable Developer Mode in Discord settings to copy channel IDs.
+Enable Developer Mode in Discord settings to copy channel IDs. Set any `features` flag to `false` to disable that module.
 
-**4. Run**
+**5. Run**
 
 ```bash
 conda activate leaguespy
@@ -142,29 +186,47 @@ players:
 
 The `slug` is the URL-safe summoner identifier from leagueofgraphs. Go to `leagueofgraphs.com/summoner/{region}/{slug}` to find yours.
 
+You can also add players at runtime with `/spy add <slug> <name> [region]` without editing the config file.
+
 ## How It Works
 
 ![Pipeline Flow](assets/slides-flow.png)
 
-**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. If a loss is brutal enough, or a win is cracked enough, LeagueSpy also asks local `qwen3.5:9b` for a short Spanish roast or hype line and posts that above the embed. Already-seen matches are skipped.
+**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. Already-seen matches are skipped.
+
+**Roast engine:** After each match announcement, the roast cog checks the result. Losses trigger a Spanish roast via vLLM + Qwen3.5:9B. The roast intensity scales with the player's current loss streak and tilt score. Perfect KDA games get backhanded compliments. The LLM receives the last 5 roasts for that player so it doesn't repeat itself.
+
+**Live alerts:** Every 2 minutes, the bot checks each summoner's profile for the "currently in game" indicator. When someone starts a game, a blue embed goes out with their champion (if detectable). When the game ends, the state resets automatically.
+
+**Rivalry detection:** When a new match is inserted, the bot checks if another tracked player shares the same match ID with the opposite win value. If so, a purple "RIVALIDAD DETECTADA" embed fires with the all-time head-to-head record.
 
 **Summary GIF:** Three times a day (00:00, 08:00, 16:00 Madrid time), the bot queries all matches from the last 8 hours, groups them by player, renders a Pillow frame per player (dark Discord theme, champion icons, W/L record, net +/- badge), and sends the animated GIF to the channel. Players with zero matches in the window are skipped.
+
+**Weekly power rankings:** Every Monday at 10:00 Madrid time, the bot computes a composite score (win rate, KDA, activity) for each player over the last 7 days and renders a ranked PNG. Crown emoji for #1, clown emoji for last place.
 
 ## Project Structure
 
 ```
 src/
-  bot.py             # Bot core with two async task loops (matches + summary)
+  bot.py             # Bot core with task loops (matches + summary), cog loader
   scraper.py         # leagueofgraphs scraper (Playwright stealth browser)
-  database.py        # Oracle DB layer (oracledb)
+  database.py        # Oracle DB layer (oracledb) with 20+ query methods
   embeds.py          # Discord rich embed builder with champion thumbnails
-  commentary.py      # Extreme-match roast/praise logic + Ollama prompt builder
   models.py          # Data models (SummonerConfig, MatchResult)
   champion_icons.py  # Riot DDragon CDN icon resolution and caching
   daily_summary.py   # 8-hour summary GIF renderer (Pillow)
+  llm.py             # vLLM async client (OpenAI-compatible API)
+  analytics.py       # Tilt score computation
+  rankings.py        # Weekly power rankings Pillow renderer
+  cogs/
+    roast.py         # Spanish roast engine (loss triggers, streak escalation)
+    commands.py      # 7 slash commands under /spy group
+    analytics.py     # Rivalry detection + weekly rankings task loop
+    live.py          # In-game detection alerts
 scripts/
-  setup_db.sql       # Oracle schema (sequences + tables)
-tests/               # 99 unit and integration tests
+  setup_db.sql       # Oracle schema v1 (sequences + tables)
+  migrate_v2.sql     # v2 migration (streaks, live_games, roast_history)
+tests/               # 165 unit and integration tests
 assets/
   visual-explainer.html  # Interactive architecture diagram
   slides.html            # Presentation deck
@@ -177,7 +239,7 @@ conda activate leaguespy
 pytest tests/ -v
 ```
 
-99 tests covering the scraper, commentary module, database, embeds, champion icons, summary GIF renderer, and scheduler boundary logic.
+165 tests covering the scraper, database, embeds, champion icons, summary GIF, scheduler logic, vLLM client, roast engine, slash commands, tilt score, power rankings, analytics cog, and live game alerts.
 
 ## License
 
