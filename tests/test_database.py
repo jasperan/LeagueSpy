@@ -97,3 +97,39 @@ def test_get_streak(mock_db):
     assert streak == -3
     assert longest_w == 5
     assert longest_l == 4
+
+
+def test_get_player_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = (50, 30, 20, 6.5, 3.2, 8.1)
+    stats = db.get_player_stats(1)
+    assert stats["total_games"] == 50
+    assert stats["wins"] == 30
+
+
+def test_get_player_stats_no_matches(mock_db):
+    db, cursor = mock_db
+    cursor.fetchone.return_value = None
+    stats = db.get_player_stats(1)
+    assert stats["total_games"] == 0
+
+
+def test_get_champion_stats(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("Jinx", 20, 14, 7.2, 2.1, 6.5),
+        ("Lux", 10, 5, 3.1, 4.0, 8.2),
+    ]
+    result = db.get_champion_stats(1)
+    assert len(result) == 2
+    assert result[0]["champion"] == "Jinx"
+
+
+def test_get_recent_matches(mock_db):
+    db, cursor = mock_db
+    cursor.fetchall.return_value = [
+        ("EUW1-100", "Jinx", 1, 8, 2, 5, "32min 15s", "Ranked", "2026-03-16 10:00 UTC"),
+    ]
+    result = db.get_recent_matches(1, limit=5)
+    assert len(result) == 1
+    assert result[0]["match_id"] == "EUW1-100"

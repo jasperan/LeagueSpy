@@ -140,5 +140,52 @@ class Database:
             row = cur.fetchone()
             return (row[0], row[1], row[2]) if row else (0, 0, 0)
 
+    def get_player_stats(self, summoner_id: int) -> dict:
+        """Return aggregate stats for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT COUNT(*), SUM(win), COUNT(*) - SUM(win),
+                          ROUND(AVG(kills), 1), ROUND(AVG(deaths), 1), ROUND(AVG(assists), 1)
+                   FROM matches WHERE summoner_id = :sid""",
+                {"sid": summoner_id},
+            )
+            row = cur.fetchone()
+            if not row or row[0] is None or row[0] == 0:
+                return {"total_games": 0, "wins": 0, "losses": 0,
+                        "avg_kills": 0, "avg_deaths": 0, "avg_assists": 0}
+            return {
+                "total_games": int(row[0]), "wins": int(row[1]), "losses": int(row[2]),
+                "avg_kills": float(row[3]), "avg_deaths": float(row[4]), "avg_assists": float(row[5]),
+            }
+
+    def get_champion_stats(self, summoner_id: int, limit: int = 10) -> list[dict]:
+        """Return per-champion stats sorted by games played."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT champion, COUNT(*) as games, SUM(win) as wins,
+                          ROUND(AVG(kills), 1), ROUND(AVG(deaths), 1), ROUND(AVG(assists), 1)
+                   FROM matches WHERE summoner_id = :sid
+                   GROUP BY champion ORDER BY games DESC
+                   FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            cols = ["champion", "games", "wins", "avg_kills", "avg_deaths", "avg_assists"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_recent_matches(self, summoner_id: int, limit: int = 10) -> list[dict]:
+        """Return the N most recent matches for a summoner."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT match_id, champion, win, kills, deaths, assists,
+                          game_duration, game_mode, played_at
+                   FROM matches WHERE summoner_id = :sid
+                   ORDER BY created_at DESC
+                   FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            cols = ["match_id", "champion", "win", "kills", "deaths", "assists",
+                    "game_duration", "game_mode", "played_at"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
     def close(self):
         self.conn.close()
