@@ -54,6 +54,7 @@ def should_fire_summary(now: datetime, last_check: datetime) -> bool:
 class LeagueSpyBot(commands.Bot):
     def __init__(self, config: dict):
         intents = discord.Intents.default()
+        intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
 
         self.config = config
@@ -109,6 +110,10 @@ class LeagueSpyBot(commands.Bot):
             from src.cogs.live import LiveCog
             await self.add_cog(LiveCog(self))
             logger.info("Loaded LiveCog")
+        if self.features.get("ask", True) and self.llm_config:
+            from src.cogs.ask import AskCog
+            await self.add_cog(AskCog(self))
+            logger.info("Loaded AskCog")
         try:
             await self.tree.sync()
             logger.info("Slash commands synced globally")

@@ -172,6 +172,25 @@ class SpyCog(commands.Cog):
             )
         await interaction.followup.send(embed=embed)
 
+    @spy.command(name="ask", description="Ask anything about tracked players' data")
+    @app_commands.describe(question="Your question about player stats, matches, etc.")
+    async def _ask(self, interaction: discord.Interaction, question: str):
+        await interaction.response.defer()
+        ask_cog = self.bot.get_cog("AskCog")
+        if not ask_cog:
+            await interaction.followup.send(
+                "El sistema de preguntas no esta activo.", ephemeral=True,
+            )
+            return
+        answer = await ask_cog.answer(question)
+        embed = discord.Embed(
+            title="LeagueSpy",
+            description=answer[:4096],
+            colour=discord.Colour.blue(),
+        )
+        embed.set_footer(text=f"Pregunta: {question[:100]}")
+        await interaction.followup.send(embed=embed)
+
     @spy.command(name="help", description="List all LeagueSpy commands")
     async def _help(self, interaction: discord.Interaction):
         embed = discord.Embed(
@@ -212,6 +231,11 @@ class SpyCog(commands.Cog):
         embed.add_field(
             name="/spy roast <player>",
             value="Generate an LLM roast from recent match history.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy ask <question>",
+            value="Ask anything about tracked players' data in natural language. You can also reply to any bot message to ask a follow-up.",
             inline=False,
         )
         embed.add_field(
