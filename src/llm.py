@@ -1,13 +1,16 @@
-"""Async client for vLLM's OpenAI-compatible chat completions endpoint."""
+"""Async client for OpenAI-compatible chat completions (vLLM / Ollama)."""
 
 import logging
+import re
 import httpx
 
 logger = logging.getLogger("leaguespy.llm")
 
+_THINK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
 
 class VLLMClient:
-    """Thin wrapper around vLLM /v1/chat/completions."""
+    """Thin wrapper around OpenAI-compatible /v1/chat/completions."""
 
     def __init__(self, base_url: str, model: str, max_tokens: int = 200):
         self.base_url = base_url
@@ -24,12 +27,9 @@ class VLLMClient:
             ],
             "max_tokens": self.max_tokens,
             "temperature": 0.9,
-            "extra_body": {
-                "chat_template_kwargs": {"enable_thinking": False},
-            },
         }
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with httpx.AsyncClient(timeout=60) as client:
                 resp = await client.post(
                     f"{self.base_url}/chat/completions",
                     json=payload,
@@ -38,8 +38,19 @@ class VLLMClient:
                 data = resp.json()
                 choices = data.get("choices", [])
                 if not choices:
+                    logger.warning("LLM returned no choices")
                     return None
-                return choices[0]["message"]["content"]
+                content = choices[0]["message"]["content"]
+                if not content:
+                    logger.warning("LLM returned empty content")
+                    return None
+                # Strip <think>...</think> blocks from reasoning models
+                content = _THINK_RE.sub("", content).strip()
+                if not content:
+                    logger.warning("LLM content was only thinking tags")
+                    return None
+                logger.debug("LLM response: %s", content[:200])
+                return content
         except Exception as e:
-            logger.warning("vLLM request failed: %s", e)
+            logger.warning("LLM request failed: %s", e)
             return None
