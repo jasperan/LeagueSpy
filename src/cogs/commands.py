@@ -172,6 +172,55 @@ class SpyCog(commands.Cog):
             )
         await interaction.followup.send(embed=embed)
 
+    @spy.command(name="help", description="List all LeagueSpy commands")
+    async def _help(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="LeagueSpy Commands",
+            colour=discord.Colour.gold(),
+            description="All available `/spy` commands:",
+        )
+        embed.add_field(
+            name="/spy add <slug> <player_name> [region]",
+            value="Add a summoner to tracking. Region defaults to EUW.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy remove <slug>",
+            value="Stop tracking a summoner.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy stats [player]",
+            value="Show player stats (games, WR, streak, KDA). All players if no name given.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy leaderboard",
+            value="Group rankings by win rate (min 10 games).",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy champions <player>",
+            value="Top 10 champions by games played with win rates.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy h2h <player1> <player2>",
+            value="Head-to-head record between two tracked players.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy roast <player>",
+            value="Generate an LLM roast from recent match history.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy help",
+            value="Show this message.",
+            inline=False,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @spy.command(name="h2h", description="Head-to-head record")
     @app_commands.describe(player1="First player", player2="Second player")
     async def _h2h(self, interaction: discord.Interaction, player1: str, player2: str):
