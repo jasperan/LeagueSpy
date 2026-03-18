@@ -111,7 +111,12 @@ class LeagueSpyBot(commands.Bot):
             logger.info("Loaded LiveCog")
         try:
             await self.tree.sync()
-            logger.info("Slash commands synced")
+            logger.info("Slash commands synced globally")
+            channel = self.get_channel(self.channel_id)
+            if channel and channel.guild:
+                self.tree.copy_global_to(guild=channel.guild)
+                await self.tree.sync(guild=channel.guild)
+                logger.info("Slash commands synced to guild %s", channel.guild.name)
         except Exception as e:
             logger.warning("Failed to sync slash commands: %s", e)
 
