@@ -169,23 +169,38 @@ class AskCog(commands.Cog):
             return
         if message.channel.id != self.bot.channel_id:
             return
-        if not message.reference or not message.reference.message_id:
-            return
-        try:
-            ref_msg = message.reference.cached_message
-            if ref_msg is None:
-                ref_msg = await message.channel.fetch_message(message.reference.message_id)
-            if ref_msg.author.id != self.bot.user.id:
-                return
-        except Exception:
-            return
 
-        question = message.content.strip()
+        content = message.content.strip()
+        question = None
+
+        # Text-based /spy ask <question> fallback
+        lower = content.lower()
+        if lower.startswith("/spy ask "):
+            question = content[9:].strip()
+            logger.info("Text-based /spy ask from %s: %s", message.author, question)
+        # Reply to a bot message
+        elif message.reference and message.reference.message_id:
+            try:
+                ref_msg = message.reference.cached_message
+                if ref_msg is None:
+                    ref_msg = await message.channel.fetch_message(message.reference.message_id)
+                if ref_msg.author.id != self.bot.user.id:
+                    return
+                question = content
+                logger.info("Reply-based question from %s: %s", message.author, question)
+            except Exception as e:
+                logger.warning("Failed to fetch referenced message: %s", e)
+                return
+
         if not question:
             return
 
         async with message.channel.typing():
-            answer = await self.answer(question)
+            try:
+                answer = await self.answer(question)
+            except Exception as e:
+                logger.error("Failed to generate answer: %s", e, exc_info=True)
+                answer = "Error al procesar la pregunta."
 
         embed = discord.Embed(
             description=answer[:4096],
