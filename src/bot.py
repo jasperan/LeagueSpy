@@ -54,7 +54,8 @@ def should_fire_summary(now: datetime, last_check: datetime) -> bool:
 class LeagueSpyBot(commands.Bot):
     def __init__(self, config: dict):
         intents = discord.Intents.default()
-        intents.message_content = True
+        if config.get("features", {}).get("message_content_intent", False):
+            intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
 
         self.config = config
