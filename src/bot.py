@@ -116,15 +116,26 @@ class LeagueSpyBot(commands.Bot):
             await self.add_cog(AskCog(self))
             logger.info("Loaded AskCog")
         try:
-            await self.tree.sync()
-            logger.info("Slash commands synced globally")
+            cmds = await self.tree.sync()
+            logger.info("Slash commands synced globally: %s", [c.name for c in cmds])
             channel = self.get_channel(self.channel_id)
             if channel and channel.guild:
                 self.tree.copy_global_to(guild=channel.guild)
-                await self.tree.sync(guild=channel.guild)
-                logger.info("Slash commands synced to guild %s", channel.guild.name)
+                guild_cmds = await self.tree.sync(guild=channel.guild)
+                logger.info("Slash commands synced to guild %s: %s",
+                            channel.guild.name, [c.name for c in guild_cmds])
         except Exception as e:
             logger.warning("Failed to sync slash commands: %s", e)
+
+    async def on_app_command_error(self, interaction: discord.Interaction, error: Exception):
+        logger.error("Slash command error: %s", error, exc_info=True)
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send(f"Error: {error}", ephemeral=True)
+            else:
+                await interaction.response.send_message(f"Error: {error}", ephemeral=True)
+        except Exception:
+            pass
 
     @tasks.loop(minutes=5)
     async def check_matches(self):
