@@ -110,6 +110,24 @@ def test_request_ollama_disables_thinking_mode():
     assert mock_post.call_args.kwargs["json"]["think"] is False
 
 
+def test_request_ollama_strips_trailing_thinking_dump():
+    mock_response = MagicMock()
+    mock_response.raise_for_status.return_value = None
+    mock_response.json.return_value = {
+        "response": (
+            "Gloglito, 0 muertes por minuto con Ahri es un recital de inting.\n\n"
+            "Thinking Process:\n\n"
+            "Analyze the Request:\n"
+            "Role: Most acidic LoL commentator."
+        ),
+    }
+
+    with patch("src.commentary.httpx.post", return_value=mock_response):
+        result = _request_ollama("hola")
+
+    assert result == "Gloglito, 0 muertes por minuto con Ahri es un recital de inting."
+
+
 @pytest.mark.asyncio
 async def test_build_commentary_returns_spanish_line_and_results_on_success():
     summoner = _make_summoner()

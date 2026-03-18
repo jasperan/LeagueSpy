@@ -4,6 +4,7 @@ import re
 
 import httpx
 
+from src.llm import _strip_thinking
 from src.models import MatchResult, SummonerConfig
 
 logger = logging.getLogger("leaguespy.commentary")
@@ -118,7 +119,8 @@ Devuelve solo la frase.
 
 
 def _clean_response_text(text: str) -> str:
-    cleaned = " ".join(text.split()).strip(" \t\n\r\"'“”")
+    cleaned = _strip_thinking(text)
+    cleaned = " ".join(cleaned.split()).strip(" \t\n\r\"'“”")
     cleaned = _PREFIX_RE.sub("", cleaned)
     return cleaned.strip()
 
