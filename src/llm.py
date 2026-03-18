@@ -40,9 +40,16 @@ class VLLMClient:
                 if not choices:
                     logger.warning("LLM returned no choices")
                     return None
-                content = choices[0]["message"]["content"]
-                if not content:
-                    logger.warning("LLM returned empty content")
+                msg = choices[0]["message"]
+                logger.info("LLM message keys: %s", list(msg.keys()))
+                content = msg.get("content") or ""
+                # Ollama puts thinking in a separate field for reasoning models
+                if not content.strip() and "reasoning_content" in msg:
+                    logger.info("Using reasoning_content fallback")
+                    content = msg["reasoning_content"]
+                if not content.strip():
+                    logger.warning("LLM returned empty content. Full msg: %s",
+                                   {k: (v[:100] if isinstance(v, str) else v) for k, v in msg.items()})
                     return None
                 # Strip <think>...</think> blocks from reasoning models
                 content = _THINK_RE.sub("", content).strip()
