@@ -773,3 +773,155 @@ def render_scoreboard(
     buf = BytesIO()
     final.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def render_solo_card(
+    champion: str,
+    player_name: str,
+    win: bool,
+    kills: int,
+    deaths: int,
+    assists: int,
+    game_mode: str = "",
+    game_duration: str = "",
+    cs: int = 0,
+    gold: int = 0,
+    kill_participation: int = 0,
+    vision_score: int = 0,
+) -> bytes | None:
+    """Render a single-player match card when full details aren't available.
+
+    Uses the same visual style as the spotlight section of the full scoreboard.
+    Returns PNG bytes.
+    """
+    card_h = 220
+    img = Image.new("RGBA", (_WIDTH, card_h), _BG)
+    draw = ImageDraw.Draw(img)
+
+    # -- Splash art background --
+    splash = download_splash(champion, width=_WIDTH, height=card_h)
+    if splash:
+        splash = splash.convert("RGBA")
+        overlay = Image.new("RGBA", (_WIDTH, card_h), (18, 20, 24, 195))
+        splash = Image.alpha_composite(splash, overlay)
+        img.paste(splash, (0, 0))
+
+    # Top accent line
+    accent = _GREEN if win else _RED_ACCENT
+    draw.rectangle([0, 0, _WIDTH, 2], fill=accent)
+
+    # -- Game info strip --
+    info_font = _font_regular(11)
+    info_y = 8
+    ix = _MARGIN + 4
+    if game_mode:
+        draw.text((ix, info_y), game_mode.upper(), fill=_LIGHT_GRAY, font=info_font)
+        ix += _text_width(draw, game_mode.upper(), info_font) + 12
+    if game_mode and game_duration:
+        draw.text((ix, info_y), "\u2022", fill=_GRAY, font=info_font)
+        ix += 14
+    if game_duration:
+        draw.text((ix, info_y), game_duration, fill=_LIGHT_GRAY, font=info_font)
+
+    # -- Result badge (top-right) --
+    badge_font = _font(11)
+    badge_text = "VICTORY" if win else "DEFEAT"
+    badge_bg = (34, 139, 34) if win else (180, 30, 30)
+    bw = _text_width(draw, badge_text, badge_font) + 16
+    bx = _WIDTH - _MARGIN - bw - 8
+    _rounded_rect(draw, [bx, 6, bx + bw, 28], 4, badge_bg)
+    draw.text((bx + 8, 10), badge_text, fill=_WHITE, font=badge_font)
+
+    # -- Champion icon (circular) --
+    icon = download_icon(champion, size=_SPOTLIGHT_ICON)
+    icon_x = _MARGIN + 16
+    icon_y = 40
+    if icon:
+        circ = _circular_icon(icon, _SPOTLIGHT_ICON, accent, border_w=4)
+        img.paste(circ, (icon_x, icon_y), circ)
+    icon_right = icon_x + _SPOTLIGHT_ICON + 8 + 20
+
+    # -- Player name --
+    name_font = _font(22)
+    draw.text((icon_right, 44), player_name, fill=_GOLD, font=name_font)
+
+    # -- Champion name below --
+    champ_font = _font_regular(13)
+    draw.text((icon_right, 72), champion, fill=_LIGHT_GRAY, font=champ_font)
+
+    # -- KDA (large, right side) --
+    kda_font = _font(30)
+    kda_small = _font_regular(13)
+    cx = _WIDTH - _MARGIN - 16
+    kda_y = 42
+
+    # Render right-aligned KDA
+    a_str = str(assists)
+    cx -= _text_width(draw, a_str, kda_font)
+    draw.text((cx, kda_y), a_str, fill=_WHITE, font=kda_font)
+    slash = " / "
+    cx -= _text_width(draw, slash, kda_font)
+    draw.text((cx, kda_y), slash, fill=_GRAY, font=kda_font)
+    d_str = str(deaths)
+    cx -= _text_width(draw, d_str, kda_font)
+    death_color = _RED_ACCENT if deaths >= 5 else _LIGHT_GRAY
+    draw.text((cx, kda_y), d_str, fill=death_color, font=kda_font)
+    cx -= _text_width(draw, slash, kda_font)
+    draw.text((cx, kda_y), slash, fill=_GRAY, font=kda_font)
+    k_str = str(kills)
+    cx -= _text_width(draw, k_str, kda_font)
+    draw.text((cx, kda_y), k_str, fill=_WHITE, font=kda_font)
+
+    # KDA ratio
+    ratio = (kills + assists) / max(1, deaths)
+    ratio_str = f"KDA {ratio:.2f}"
+    ratio_color = _GREEN if ratio >= 3.0 else _GOLD if ratio >= 2.0 else _LIGHT_GRAY
+    rw = _text_width(draw, ratio_str, kda_small)
+    draw.text((_WIDTH - _MARGIN - rw - 16, kda_y + 38), ratio_str, fill=ratio_color, font=kda_small)
+
+    # -- Stat badges --
+    badge_data = [
+        ("CS", str(cs)),
+        ("GOLD", f"{gold / 1000:.1f}k" if gold >= 1000 else str(gold)),
+        ("KP", f"{kill_participation}%"),
+        ("VISION", str(vision_score)),
+    ]
+    pill_w = 110
+    pill_h = 38
+    pill_gap = 12
+    total_w = len(badge_data) * pill_w + (len(badge_data) - 1) * pill_gap
+    start_x = (_WIDTH - total_w) // 2
+    pill_y = card_h - pill_h - 16
+
+    label_font = _font_regular(9)
+    value_font = _font(14)
+
+    for i, (label, value) in enumerate(badge_data):
+        px = start_x + i * (pill_w + pill_gap)
+        pill = Image.new("RGBA", (pill_w, pill_h), (0, 0, 0, 0))
+        pill_draw = ImageDraw.Draw(pill)
+        try:
+            pill_draw.rounded_rectangle([0, 0, pill_w, pill_h], radius=6, fill=(0, 0, 0, 130))
+        except AttributeError:
+            pill_draw.rectangle([0, 0, pill_w, pill_h], fill=(0, 0, 0, 130))
+        img.paste(pill, (px, pill_y), pill)
+
+        lw = _text_width(draw, label, label_font)
+        draw.text((px + (pill_w - lw) // 2, pill_y + 3), label, fill=_GRAY, font=label_font)
+        vw = _text_width(draw, value, value_font)
+        draw.text((px + (pill_w - vw) // 2, pill_y + 16), value, fill=_WHITE, font=value_font)
+
+    # -- Rounded corners --
+    mask = Image.new("L", img.size, 0)
+    mask_draw = ImageDraw.Draw(mask)
+    try:
+        mask_draw.rounded_rectangle([0, 0, _WIDTH, card_h], radius=_CORNER_R, fill=255)
+    except AttributeError:
+        mask_draw.rectangle([0, 0, _WIDTH, card_h], fill=255)
+
+    final = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    final.paste(img, (0, 0), mask)
+
+    buf = BytesIO()
+    final.save(buf, format="PNG")
+    return buf.getvalue()

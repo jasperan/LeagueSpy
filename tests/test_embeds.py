@@ -40,11 +40,11 @@ def test_loss_announcement():
     assert "DEFEAT" in embed.title
 
 
-def test_no_scoreboard_uses_thumbnail():
+def test_no_scoreboard_no_image():
+    """Without a scoreboard image, embed has no image or thumbnail attached."""
     payload = build_match_announcement(_make_summoner(), _make_match())
     embed = payload["embed"]
-    assert embed.thumbnail is not None
-    assert "Jinx" in embed.thumbnail.url
+    # No image or file when scoreboard_image is None (bot provides solo card separately)
     assert "file" not in payload
 
 

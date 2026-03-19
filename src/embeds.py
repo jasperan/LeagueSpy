@@ -1,6 +1,5 @@
 import io
 import discord
-from src.champion_icons import get_icon_url
 from src.models import MatchResult, SummonerConfig
 
 
@@ -28,8 +27,6 @@ def build_match_announcement(
 
     if scoreboard_image:
         embed.set_image(url="attachment://scoreboard.png")
-    else:
-        embed.set_thumbnail(url=get_icon_url(match.champion))
 
     if match.played_at:
         embed.set_footer(text=f"Played: {match.played_at}")

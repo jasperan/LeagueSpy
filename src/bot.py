@@ -11,7 +11,7 @@ from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_announcement
 from src.commentary import build_commentary
-from src.match_image import render_scoreboard
+from src.match_image import render_scoreboard, render_solo_card
 from src.daily_summary import group_by_player, build_summary_image
 from src.models import SummonerConfig, MatchDetails
 
@@ -188,6 +188,21 @@ class LeagueSpyBot(commands.Bot):
                                 match.details, summoner.slug,
                                 game_mode=match.game_mode,
                                 game_duration=match.game_duration,
+                            )
+                        if scoreboard_img is None:
+                            scoreboard_img = render_solo_card(
+                                champion=match.champion,
+                                player_name=summoner.player_name,
+                                win=match.win,
+                                kills=match.kills,
+                                deaths=match.deaths,
+                                assists=match.assists,
+                                game_mode=match.game_mode,
+                                game_duration=match.game_duration,
+                                cs=match.cs,
+                                gold=match.gold,
+                                kill_participation=match.kill_participation,
+                                vision_score=match.vision_score,
                             )
                         payload = build_match_announcement(summoner, match, commentary, scoreboard_img)
                         await channel.send(**payload)
