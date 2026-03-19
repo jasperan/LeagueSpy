@@ -184,7 +184,11 @@ class LeagueSpyBot(commands.Bot):
                         commentary = await build_commentary(summoner, match)
                         scoreboard_img = None
                         if match.details:
-                            scoreboard_img = render_scoreboard(match.details, summoner.slug)
+                            scoreboard_img = render_scoreboard(
+                                match.details, summoner.slug,
+                                game_mode=match.game_mode,
+                                game_duration=match.game_duration,
+                            )
                         payload = build_match_announcement(summoner, match, commentary, scoreboard_img)
                         await channel.send(**payload)
                         self.db.insert_match(db_id, match)

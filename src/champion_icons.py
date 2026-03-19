@@ -93,6 +93,61 @@ def get_icon_url(champion_name: str, version: str | None = None) -> str:
     return f"{DDRAGON_BASE}/cdn/{version}/img/champion/{key}.png"
 
 
+def get_splash_url(champion_name: str) -> str:
+    """Return the DDragon centered champion splash art URL."""
+    key = normalize_champion_name(champion_name)
+    return f"{DDRAGON_BASE}/cdn/img/champion/centered/{key}_0.jpg"
+
+
+def download_splash(champion_name: str, width: int = 800, height: int = 200):
+    """Download a champion splash art, crop and resize for use as a background.
+
+    Returns a ``PIL.Image.Image`` or *None* on failure.
+    """
+    try:
+        from PIL import Image  # noqa: PLC0415
+    except ImportError:
+        return None
+
+    key = normalize_champion_name(champion_name)
+    cache_path = ICON_CACHE_DIR / f"{key}_splash_{width}x{height}.png"
+
+    if cache_path.exists():
+        return Image.open(cache_path)
+
+    url = get_splash_url(champion_name)
+    try:
+        resp = httpx.get(url, timeout=15)
+        resp.raise_for_status()
+    except Exception:
+        logger.warning("Failed to download splash for %s", champion_name)
+        return None
+
+    try:
+        import io  # noqa: PLC0415
+
+        img = Image.open(io.BytesIO(resp.content)).convert("RGBA")
+        src_w, src_h = img.size
+        target_ratio = width / height
+        src_ratio = src_w / src_h
+        if src_ratio > target_ratio:
+            new_w = int(src_h * target_ratio)
+            offset = (src_w - new_w) // 2
+            img = img.crop((offset, 0, offset + new_w, src_h))
+        else:
+            new_h = int(src_w / target_ratio)
+            offset = (src_h - new_h) // 2
+            img = img.crop((0, offset, src_w, offset + new_h))
+
+        img = img.resize((width, height), Image.LANCZOS)
+        os.makedirs(ICON_CACHE_DIR, exist_ok=True)
+        img.save(cache_path, format="PNG")
+        return img
+    except Exception:
+        logger.warning("Failed to process splash for %s", champion_name)
+        return None
+
+
 def download_icon(champion_name: str, size: int = 48):
     """Download a champion icon, resize it, and cache locally.
 

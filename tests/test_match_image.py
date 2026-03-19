@@ -76,7 +76,7 @@ class TestRenderScoreboard:
         details = _make_details()
         result = render_scoreboard(details, "jasper-1971")
         img = Image.open(BytesIO(result))
-        assert img.size[0] == 720
+        assert img.size[0] == 800
         # 5 players per team, headers, margins
         assert img.size[1] > 200
 
