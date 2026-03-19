@@ -59,7 +59,7 @@ class TestRenderPlayerFrame:
         matches = _sample_matches()[:3]
         frame = render_player_frame("jasper", matches)
         assert isinstance(frame, Image.Image)
-        assert frame.size[0] == 620
+        assert frame.size[0] == 800
 
     @patch("src.daily_summary.download_icon", return_value=None)
     def test_frame_height_scales_with_matches(self, mock_dl):
@@ -74,7 +74,7 @@ class TestRenderPlayerFrame:
         matches = _sample_matches_no_enhanced()
         frame = render_player_frame("jasper", matches)
         assert isinstance(frame, Image.Image)
-        assert frame.size[0] == 620
+        assert frame.size[0] == 800
 
 
 class TestBuildSummaryImage:
