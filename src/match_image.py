@@ -314,7 +314,7 @@ def _render_spotlight(
     players = details.team1_players if team_idx == 0 else details.team2_players
     player = players[p_idx]
     result = details.team1_result if team_idx == 0 else details.team2_result
-    is_win = result.upper() == "WIN"
+    is_win = result.upper() == "VICTORY"
 
     # -- Background: splash art with dark overlay --
     splash = download_splash(player.champion, width=_WIDTH, height=_SPOTLIGHT_H)
@@ -526,7 +526,7 @@ def _render_team_header(
     draw.text((_WIDTH - _MARGIN - gold_w - 80, text_y + 1), gold_str, fill=_GOLD, font=small_font)
 
     # Result
-    result_color = _GREEN if result.upper() == "WIN" else _RED_ACCENT
+    result_color = _GREEN if result.upper() == "VICTORY" else _RED_ACCENT
     result_font = _font(12)
     rw = _text_width(draw, result.upper(), result_font)
     draw.text((_WIDTH - _MARGIN - rw - 4, text_y), result.upper(), fill=result_color, font=result_font)
