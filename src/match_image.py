@@ -198,7 +198,8 @@ def _find_tracked_player(
     details: MatchDetails, summoner_slug: str,
 ) -> tuple[int, int] | None:
     """Return (team_index, player_index) for the tracked player."""
-    slug_as_name = summoner_slug.replace("-", "#").lower()
+    parts = summoner_slug.rsplit("-", 1)
+    slug_as_name = (parts[0] + "#" + parts[1]).lower() if len(parts) == 2 else summoner_slug.lower()
     for team_idx, players in enumerate([details.team1_players, details.team2_players]):
         for p_idx, p in enumerate(players):
             if p.summoner_name.lower().replace(" ", "") == slug_as_name.replace(" ", ""):
@@ -526,10 +527,11 @@ def _render_team_header(
     draw.text((_WIDTH - _MARGIN - gold_w - 80, text_y + 1), gold_str, fill=_GOLD, font=small_font)
 
     # Result
-    result_color = _GREEN if result.upper() == "VICTORY" else _RED_ACCENT
+    result_str = (result or "").upper()
+    result_color = _GREEN if result_str == "VICTORY" else _RED_ACCENT
     result_font = _font(12)
-    rw = _text_width(draw, result.upper(), result_font)
-    draw.text((_WIDTH - _MARGIN - rw - 4, text_y), result.upper(), fill=result_color, font=result_font)
+    rw = _text_width(draw, result_str, result_font)
+    draw.text((_WIDTH - _MARGIN - rw - 4, text_y), result_str, fill=result_color, font=result_font)
 
     return y + _TEAM_HEADER_H
 
@@ -627,13 +629,13 @@ def _render_player_row(
     draw.text((_COL_GOLD, text_y), player.gold_display, fill=gold_color, font=_font(11) if is_gold_mvp else stat_font)
 
     # -- KP --
-    kp_str = f"{player.kill_participation}%" if player.kill_participation else "-"
+    kp_str = f"{player.kill_participation}%" if player.kill_participation is not None else "-"
     is_kp_mvp = mvp_stats and mvp_stats.get("kp") == player_idx
     kp_color = _MVP_GLOW if is_kp_mvp else _LIGHT_GRAY
     draw.text((_COL_KP, text_y), kp_str, fill=kp_color, font=_font(11) if is_kp_mvp else stat_font)
 
     # -- Vision --
-    vs_str = str(player.vision_score) if player.vision_score else "-"
+    vs_str = str(player.vision_score) if player.vision_score is not None else "-"
     is_vis_mvp = mvp_stats and mvp_stats.get("vision") == player_idx
     vis_color = _MVP_GLOW if is_vis_mvp else _LIGHT_GRAY
     draw.text((_COL_VS, text_y), vs_str, fill=vis_color, font=_font(11) if is_vis_mvp else stat_font)

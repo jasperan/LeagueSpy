@@ -83,7 +83,7 @@ def render_power_rankings(players: list[dict]) -> Image.Image | None:
         else:
             deco = f"#{i+1}"
 
-        icon = download_icon(p.get("top_champion", ""), size=_ICON_SIZE)
+        icon = download_icon(p["top_champion"], size=_ICON_SIZE) if p.get("top_champion") else None
         if icon:
             img.paste(icon, (_MARGIN, y + 5), icon if icon.mode == "RGBA" else None)
 

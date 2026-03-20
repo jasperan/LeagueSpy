@@ -206,13 +206,14 @@ class LeagueOfGraphsScraper:
                 continue
 
             try:
+                kills, deaths, assists = self._extract_kda(row)
                 matches.append(MatchResult(
                     match_id=match_id,
                     champion=self._extract_champion(row),
                     win=self._extract_win(row),
-                    kills=self._extract_kda(row)[0],
-                    deaths=self._extract_kda(row)[1],
-                    assists=self._extract_kda(row)[2],
+                    kills=kills,
+                    deaths=deaths,
+                    assists=assists,
                     game_duration=self._extract_duration(row),
                     game_mode=self._extract_game_mode(row),
                     played_at=self._extract_played_at(row),

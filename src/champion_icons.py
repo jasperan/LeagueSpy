@@ -113,7 +113,8 @@ def download_splash(champion_name: str, width: int = 800, height: int = 200):
     cache_path = ICON_CACHE_DIR / f"{key}_splash_{width}x{height}.png"
 
     if cache_path.exists():
-        return Image.open(cache_path)
+        img = Image.open(cache_path)
+        return img.copy()
 
     url = get_splash_url(champion_name)
     try:
@@ -163,7 +164,8 @@ def download_icon(champion_name: str, size: int = 48):
     cache_path = ICON_CACHE_DIR / f"{key}_{size}.png"
 
     if cache_path.exists():
-        return Image.open(cache_path)
+        img = Image.open(cache_path)
+        return img.copy()
 
     url = get_icon_url(champion_name)
 

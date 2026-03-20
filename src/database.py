@@ -164,7 +164,7 @@ class Database:
                         "avg_kills": 0, "avg_deaths": 0, "avg_assists": 0}
             return {
                 "total_games": int(row[0]), "wins": int(row[1]), "losses": int(row[2]),
-                "avg_kills": float(row[3]), "avg_deaths": float(row[4]), "avg_assists": float(row[5]),
+                "avg_kills": float(row[3] or 0), "avg_deaths": float(row[4] or 0), "avg_assists": float(row[5] or 0),
             }
 
     def get_champion_stats(self, summoner_id: int, limit: int = 10) -> list[dict]:

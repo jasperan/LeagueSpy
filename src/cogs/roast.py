@@ -22,7 +22,7 @@ SYSTEM_PROMPT_COMPLIMENT = (
 )
 
 
-def classify_trigger(win: bool, streak: int, kills: int = 1, deaths: int = 1) -> str | None:
+def classify_trigger(win: bool, streak: int, kills: int = 0, deaths: int = 0) -> str | None:
     """Determine the roast trigger type, or None if no roast should fire."""
     if not win and kills == 0:
         return "zero_kills"
