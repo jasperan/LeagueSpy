@@ -745,20 +745,37 @@ def render_scoreboard(
         y = _render_bans(img, draw, y, details)
         y += _SECTION_GAP
 
-    # Blue team
+    # Render tracked player's team first so their result appears at top
+    tracked_team = tracked[0] if tracked else 0
+    if tracked_team == 0:
+        first_players, first_result, first_idx = details.team1_players, details.team1_result, 0
+        second_players, second_result, second_idx = details.team2_players, details.team2_result, 1
+    else:
+        first_players, first_result, first_idx = details.team2_players, details.team2_result, 1
+        second_players, second_result, second_idx = details.team1_players, details.team1_result, 0
+
+    first_accent = _BLUE_ACCENT if first_idx == 0 else _RED_ACCENT
+    first_dark = _BLUE_DARK if first_idx == 0 else _RED_DARK
+    first_row = _ROW_BLUE if first_idx == 0 else _ROW_RED
+    first_hl = _ROW_BLUE_HL if first_idx == 0 else _ROW_RED_HL
+
+    second_accent = _BLUE_ACCENT if second_idx == 0 else _RED_ACCENT
+    second_dark = _BLUE_DARK if second_idx == 0 else _RED_DARK
+    second_row = _ROW_BLUE if second_idx == 0 else _ROW_RED
+    second_hl = _ROW_BLUE_HL if second_idx == 0 else _ROW_RED_HL
+
     y = _render_team(
-        img, draw, y, details.team1_players, details.team1_result,
-        _BLUE_ACCENT, _BLUE_DARK, _ROW_BLUE, _ROW_BLUE_HL,
-        tracked, 0, game_mvp,
+        img, draw, y, first_players, first_result,
+        first_accent, first_dark, first_row, first_hl,
+        tracked, first_idx, game_mvp,
     )
 
     y += _TEAM_GAP
 
-    # Red team
     y = _render_team(
-        img, draw, y, details.team2_players, details.team2_result,
-        _RED_ACCENT, _RED_DARK, _ROW_RED, _ROW_RED_HL,
-        tracked, 1, game_mvp,
+        img, draw, y, second_players, second_result,
+        second_accent, second_dark, second_row, second_hl,
+        tracked, second_idx, game_mvp,
     )
 
     # -- Final touches: rounded corners on full image --
