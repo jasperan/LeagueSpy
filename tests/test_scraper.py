@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -785,7 +787,10 @@ class TestParseMatchDetailsRealPage:
 
     @pytest.fixture
     def real_html(self):
-        with open("/tmp/match_page.html", "r", encoding="utf-8") as f:
+        path = "/tmp/match_page.html"
+        if not os.path.exists(path):
+            pytest.skip("real match page not available at /tmp/match_page.html")
+        with open(path, "r", encoding="utf-8") as f:
             return f.read()
 
     def test_parses_all_10_players(self, real_html):
