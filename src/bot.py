@@ -39,15 +39,14 @@ def build_summoner_list(config: dict) -> list[SummonerConfig]:
     return summoners
 
 
-_SUMMARY_TIMES = [dt_time(0, 0), dt_time(8, 0), dt_time(16, 0)]
+_SUMMARY_TIME = dt_time(0, 0)
 
 
 def should_fire_summary(now: datetime, last_check: datetime) -> bool:
-    """Return True if a summary boundary was crossed between *last_check* and *now*."""
-    for t in _SUMMARY_TIMES:
-        boundary = now.replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
-        if last_check < boundary <= now:
-            return True
+    """Return True if the midnight boundary was crossed between *last_check* and *now*."""
+    boundary = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if last_check < boundary <= now:
+        return True
     return False
 
 
@@ -243,13 +242,13 @@ class LeagueSpyBot(commands.Bot):
         self._last_summary_check = now
 
         try:
-            logger.info("Generating 8-hour summary...")
-            since = now - timedelta(hours=8)
+            logger.info("Generating daily summary...")
+            since = now - timedelta(hours=24)
             since_str = since.astimezone(ZoneInfo("UTC")).strftime("%Y-%m-%d %H:%M:%S")
 
             matches = self.db.get_matches_since(since_str)
             if not matches:
-                logger.info("No matches in the last 8 hours, skipping summary")
+                logger.info("No matches in the last 24 hours, skipping summary")
                 return
 
             grouped = group_by_player(matches)
@@ -265,7 +264,7 @@ class LeagueSpyBot(commands.Bot):
                 channel = await self.fetch_channel(self.channel_id)
 
             await channel.send(
-                content="**8-Hour Match Summary**",
+                content="**Daily Match Summary**",
                 file=discord.File(img_buf, filename=filename),
             )
             logger.info("Summary sent as %s (%d players, %d matches)", filename, len(grouped), len(matches))

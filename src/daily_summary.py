@@ -176,7 +176,7 @@ def _render_summary_header(grouped: dict[str, list[dict]]) -> Image.Image:
     stat_font_b = _font(12)
 
     # Title
-    draw.text((_MARGIN + 4, 14), "8-HOUR MATCH SUMMARY", fill=_GOLD, font=title_font)
+    draw.text((_MARGIN + 4, 14), "DAILY MATCH SUMMARY", fill=_GOLD, font=title_font)
 
     # Player count (right)
     count_str = f"{len(grouped)} PLAYERS"
