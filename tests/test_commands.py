@@ -81,3 +81,34 @@ async def test_remove_summoner_not_found(cog, mock_bot):
     await cog._remove_summoner.callback(cog, interaction, slug="nonexistent")
 
     mock_bot.db.deactivate_summoner.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_trends_player_not_found(cog, mock_bot):
+    mock_bot.db.get_all_summoner_ids_for_player.return_value = []
+
+    interaction = AsyncMock()
+    interaction.response = AsyncMock()
+    interaction.followup = AsyncMock()
+
+    await cog._trends.callback(cog, interaction, player="unknown")
+
+    interaction.followup.send.assert_called_once()
+    call_kwargs = interaction.followup.send.call_args
+    assert "No conozco" in str(call_kwargs)
+
+
+@pytest.mark.asyncio
+async def test_trends_no_matches(cog, mock_bot):
+    mock_bot.db.get_all_summoner_ids_for_player.return_value = [42]
+    mock_bot.db.get_recent_matches_extended.return_value = []
+
+    interaction = AsyncMock()
+    interaction.response = AsyncMock()
+    interaction.followup = AsyncMock()
+
+    await cog._trends.callback(cog, interaction, player="jasper")
+
+    interaction.followup.send.assert_called_once()
+    call_kwargs = interaction.followup.send.call_args
+    assert "no tiene partidas" in str(call_kwargs)

@@ -20,6 +20,7 @@ llm:
 features:
   roast: true
   analytics: true
+  analyst: true
   live_alerts: true
   slash_commands: true
 

@@ -181,6 +181,28 @@ class Database:
             cols = ["champion", "games", "wins", "avg_kills", "avg_deaths", "avg_assists"]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
 
+    def get_champion_averages(self, summoner_id: int, champion: str) -> dict | None:
+        """Return average stats for a summoner on a specific champion."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT COUNT(*) as games,
+                          ROUND(AVG(kills), 1), ROUND(AVG(deaths), 1), ROUND(AVG(assists), 1),
+                          ROUND(AVG(cs), 1), ROUND(AVG(gold), 0),
+                          ROUND(AVG(kill_participation), 1), ROUND(AVG(vision_score), 1)
+                   FROM matches WHERE summoner_id = :sid AND champion = :champ""",
+                {"sid": summoner_id, "champ": champion},
+            )
+            row = cur.fetchone()
+            if not row or row[0] is None or row[0] == 0:
+                return None
+            return {
+                "games": int(row[0]),
+                "avg_kills": float(row[1] or 0), "avg_deaths": float(row[2] or 0),
+                "avg_assists": float(row[3] or 0), "avg_cs": float(row[4] or 0),
+                "avg_gold": int(row[5] or 0), "avg_kp": float(row[6] or 0),
+                "avg_vision": float(row[7] or 0),
+            }
+
     def get_recent_matches(self, summoner_id: int, limit: int = 10) -> list[dict]:
         """Return the N most recent matches for a summoner."""
         with self.conn.cursor() as cur:
@@ -194,6 +216,23 @@ class Database:
             )
             cols = ["match_id", "champion", "win", "kills", "deaths", "assists",
                     "game_duration", "game_mode", "played_at"]
+            return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_recent_matches_extended(self, summoner_id: int, limit: int = 50) -> list[dict]:
+        """Return the N most recent matches with all enriched fields."""
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """SELECT match_id, champion, win, kills, deaths, assists,
+                          game_duration, game_mode, played_at,
+                          cs, gold, kill_participation, vision_score
+                   FROM matches WHERE summoner_id = :sid
+                   ORDER BY created_at DESC
+                   FETCH FIRST :lim ROWS ONLY""",
+                {"sid": summoner_id, "lim": limit},
+            )
+            cols = ["match_id", "champion", "win", "kills", "deaths", "assists",
+                    "game_duration", "game_mode", "played_at",
+                    "cs", "gold", "kill_participation", "vision_score"]
             return [dict(zip(cols, row)) for row in cur.fetchall()]
 
     def check_rivalry(self, match_id: str, summoner_id: int) -> dict | None:

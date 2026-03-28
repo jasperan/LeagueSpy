@@ -74,6 +74,7 @@ class LeagueSpyBot(commands.Bot):
             self.summoner_db_ids[s.slug] = db_id
 
         self.new_matches: deque = deque(maxlen=100)
+        self.new_matches_analyst: deque = deque(maxlen=100)
         self.llm_config = config.get("llm", {})
         self.features = config.get("features", {})
 
@@ -106,6 +107,10 @@ class LeagueSpyBot(commands.Bot):
             from src.cogs.analytics import AnalyticsCog
             await self.add_cog(AnalyticsCog(self))
             logger.info("Loaded AnalyticsCog")
+        if self.features.get("analyst", False) and self.llm_config:
+            from src.cogs.analyst import AnalystCog
+            await self.add_cog(AnalystCog(self))
+            logger.info("Loaded AnalystCog")
         if self.features.get("live_alerts", False):
             from src.cogs.live import LiveCog
             await self.add_cog(LiveCog(self))
@@ -209,6 +214,7 @@ class LeagueSpyBot(commands.Bot):
                         self.db.mark_announced(db_id, match.match_id)
                         self.db.update_streak(db_id, match.win)
                         self.new_matches.append({"summoner": summoner, "match": match, "db_id": db_id})
+                        self.new_matches_analyst.append({"summoner": summoner, "match": match, "db_id": db_id})
                         new_count += 1
 
                         # Check for rivalry match

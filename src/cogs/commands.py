@@ -172,6 +172,31 @@ class SpyCog(commands.Cog):
             )
         await interaction.followup.send(embed=embed)
 
+    @spy.command(name="trends", description="Performance trend chart")
+    @app_commands.describe(player="Player name")
+    async def _trends(self, interaction: discord.Interaction, player: str):
+        await interaction.response.defer()
+        ids = self.bot.db.get_all_summoner_ids_for_player(player)
+        if not ids:
+            await interaction.followup.send(f"No conozco a **{player}**.", ephemeral=True)
+            return
+        all_matches = []
+        for sid in ids:
+            all_matches.extend(self.bot.db.get_recent_matches_extended(sid, limit=50))
+        if not all_matches:
+            await interaction.followup.send(
+                f"**{player}** no tiene partidas registradas.", ephemeral=True,
+            )
+            return
+        from src.trends import render_trends_chart
+        chart = render_trends_chart(all_matches, player)
+        if chart is None:
+            await interaction.followup.send("No se pudo generar el grafico.", ephemeral=True)
+            return
+        await interaction.followup.send(
+            file=discord.File(chart, filename=f"trends_{player}.png"),
+        )
+
     @spy.command(name="ask", description="Ask anything about tracked players' data")
     @app_commands.describe(question="Your question about player stats, matches, etc.")
     async def _ask(self, interaction: discord.Interaction, question: str):
@@ -231,6 +256,11 @@ class SpyCog(commands.Cog):
         embed.add_field(
             name="/spy roast <player>",
             value="Generate an LLM roast from recent match history.",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy trends <player>",
+            value="Performance trend chart with win rate and KDA over recent games.",
             inline=False,
         )
         embed.add_field(
