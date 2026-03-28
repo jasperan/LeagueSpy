@@ -13,6 +13,7 @@ from src.embeds import build_match_announcement
 from src.commentary import build_commentary
 from src.match_image import render_scoreboard, render_solo_card
 from src.daily_summary import group_by_player, build_summary_image
+from src.trends import render_trends_chart
 from src.models import SummonerConfig, MatchDetails
 
 logger = logging.getLogger("leaguespy")
@@ -274,8 +275,37 @@ class LeagueSpyBot(commands.Bot):
                 file=discord.File(img_buf, filename=filename),
             )
             logger.info("Summary sent as %s (%d players, %d matches)", filename, len(grouped), len(matches))
+
+            # Generate trend charts for each active player
+            await self._send_daily_trends(channel, grouped)
         except Exception as e:
             logger.error("Summary generation failed: %s", e)
+
+    async def _send_daily_trends(self, channel, grouped: dict):
+        """Generate and send trend charts for all players who played today."""
+        try:
+            player_names = list(grouped.keys())
+            for player_name in player_names:
+                ids = self.db.get_all_summoner_ids_for_player(player_name)
+                if not ids:
+                    continue
+                all_matches = []
+                for sid in ids:
+                    all_matches.extend(self.db.get_recent_matches_extended(sid, limit=50))
+                if len(all_matches) < 3:
+                    continue
+                chart = await asyncio.get_event_loop().run_in_executor(
+                    None, render_trends_chart, all_matches, player_name,
+                )
+                if chart is None:
+                    continue
+                await channel.send(
+                    content=f"**Tendencias: {player_name}**",
+                    file=discord.File(chart, filename=f"trends_{player_name}.png"),
+                )
+                logger.info("Trend chart sent for %s", player_name)
+        except Exception as e:
+            logger.error("Daily trends generation failed: %s", e)
 
     @summary_check.before_loop
     async def before_summary(self):

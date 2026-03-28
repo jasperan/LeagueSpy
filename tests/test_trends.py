@@ -82,14 +82,14 @@ class TestRenderTrendsChart:
         assert result is not None
         img = Image.open(result)
         assert img.format == "PNG"
-        assert img.size == (800, 500)
+        assert img.size == (800, 580)
 
     def test_50_matches(self):
         matches = [_make_match(win=bool(i % 3), champion=f"Champ{i%5}") for i in range(50)]
         result = render_trends_chart(matches, "jasper")
         assert result is not None
         img = Image.open(result)
-        assert img.size == (800, 500)
+        assert img.size == (800, 580)
 
     def test_all_losses(self):
         matches = [_make_match(win=False) for _ in range(10)]
