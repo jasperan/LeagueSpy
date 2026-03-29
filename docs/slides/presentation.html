@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeagueSpy - Track. Roast. Dominate.</title>
+
+    <!-- Fonts: Syne (display) + Space Mono (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ===========================================
+           CSS CUSTOM PROPERTIES (CREATIVE VOLTAGE + GAMING)
+           =========================================== */
+        :root {
+            /* Colors */
+            --bg-primary: #0066ff;
+            --bg-dark: #1a1a2e;
+            --bg-darker: #0f0f1e;
+            --accent-gold: #FFD700;
+            --accent-crimson: #DC143C;
+            --accent-neon: #d4ff00;
+            --text-light: #ffffff;
+            --text-muted: #a0a0c0;
+            --win-green: #2ecc71;
+            --loss-red: #e74c3c;
+            --discord-blurple: #5865F2;
+            --oracle-red: #C74634;
+
+            /* Typography - MUST use clamp() */
+            --font-display: 'Syne', sans-serif;
+            --font-body: 'Space Mono', monospace;
+            --title-size: clamp(2rem, 6vw, 5rem);
+            --h2-size: clamp(1.25rem, 3.5vw, 2.5rem);
+            --h3-size: clamp(1rem, 2.5vw, 1.75rem);
+            --subtitle-size: clamp(0.875rem, 2vw, 1.25rem);
+            --body-size: clamp(0.75rem, 1.2vw, 1rem);
+            --small-size: clamp(0.65rem, 1vw, 0.875rem);
+            --code-size: clamp(0.6rem, 0.9vw, 0.8rem);
+
+            /* Spacing - MUST use clamp() */
+            --slide-padding: clamp(1.5rem, 4vw, 4rem);
+            --content-gap: clamp(1rem, 2vw, 2rem);
+            --element-gap: clamp(0.25rem, 1vw, 1rem);
+
+            /* Animation */
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --duration-normal: 0.6s;
+        }
+
+        /* ===========================================
+           RESET
+           =========================================== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ===========================================
+           VIEWPORT FITTING: MANDATORY BASE STYLES
+           Include this ENTIRE file in every presentation.
+           These styles ensure slides fit exactly in the viewport.
+           =========================================== */
+
+        /* 1. Lock html/body to viewport */
+        html, body {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        html {
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
+
+        /* 2. Each slide = exact viewport height */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            scroll-snap-align: start;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 3. Content container with flex for centering */
+        .slide-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            max-height: 100%;
+            overflow: hidden;
+            padding: var(--slide-padding);
+        }
+
+        /* 4. ALL typography uses clamp() for responsive scaling */
+        /* (Defined in :root above) */
+
+        /* 5. Cards/containers use viewport-relative max sizes */
+        .card, .container, .content-box {
+            max-width: min(90vw, 1000px);
+            max-height: min(80vh, 700px);
+        }
+
+        /* 6. Lists auto-scale with viewport */
+        .feature-list, .bullet-list {
+            gap: clamp(0.4rem, 1vh, 1rem);
+        }
+
+        .feature-list li, .bullet-list li {
+            font-size: var(--body-size);
+            line-height: 1.4;
+        }
+
+        /* 7. Grids adapt to available space */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        /* 8. Images constrained to viewport */
+        img, .image-container {
+            max-width: 100%;
+            max-height: min(50vh, 400px);
+            object-fit: contain;
+        }
+
+        /* ===========================================
+           RESPONSIVE BREAKPOINTS
+           =========================================== */
+
+        /* Short viewports (< 700px height) */
+        @media (max-height: 700px) {
+            :root {
+                --slide-padding: clamp(0.75rem, 3vw, 2rem);
+                --content-gap: clamp(0.4rem, 1.5vw, 1rem);
+                --title-size: clamp(1.25rem, 4.5vw, 2.5rem);
+                --h2-size: clamp(1rem, 3vw, 1.75rem);
+            }
+        }
+
+        /* Very short viewports (< 600px height) */
+        @media (max-height: 600px) {
+            :root {
+                --slide-padding: clamp(0.5rem, 2.5vw, 1.5rem);
+                --content-gap: clamp(0.3rem, 1vw, 0.75rem);
+                --title-size: clamp(1.1rem, 4vw, 2rem);
+                --body-size: clamp(0.7rem, 1.2vw, 0.95rem);
+            }
+
+            .nav-dots, .keyboard-hint, .decorative {
+                display: none;
+            }
+        }
+
+        /* Extremely short (landscape phones, < 500px height) */
+        @media (max-height: 500px) {
+            :root {
+                --slide-padding: clamp(0.4rem, 2vw, 1rem);
+                --title-size: clamp(1rem, 3.5vw, 1.5rem);
+                --h2-size: clamp(0.9rem, 2.5vw, 1.25rem);
+                --body-size: clamp(0.65rem, 1vw, 0.85rem);
+            }
+        }
+
+        /* Narrow viewports (< 600px width) */
+        @media (max-width: 600px) {
+            :root {
+                --title-size: clamp(1.25rem, 7vw, 2.5rem);
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===========================================
+           REDUCED MOTION
+           =========================================== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.2s !important;
+            }
+
+            html {
+                scroll-behavior: auto;
+            }
+        }
+
+        /* ===========================================
+           BODY & GLOBAL
+           =========================================== */
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-darker);
+            color: var(--text-light);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===========================================
+           PROGRESS BAR
+           =========================================== */
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--bg-primary), var(--accent-neon));
+            z-index: 9999;
+            transition: width 0.3s var(--ease-out-expo);
+            width: 0%;
+        }
+
+        /* ===========================================
+           SLIDE COUNTER
+           =========================================== */
+        .slide-counter {
+            position: fixed;
+            top: clamp(0.75rem, 2vw, 1.5rem);
+            right: clamp(0.75rem, 2vw, 1.5rem);
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            z-index: 9998;
+            opacity: 0.7;
+        }
+
+        /* ===========================================
+           NAV DOTS
+           =========================================== */
+        .nav-dots {
+            position: fixed;
+            right: clamp(0.5rem, 1.5vw, 1.5rem);
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 9998;
+        }
+
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out-expo);
+            padding: 0;
+        }
+
+        .nav-dot.active {
+            background: var(--accent-gold);
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+            transform: scale(1.4);
+        }
+
+        /* ===========================================
+           ANIMATIONS
+           =========================================== */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-50px);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity var(--duration-normal) var(--ease-out-expo),
+                        transform var(--duration-normal) var(--ease-out-expo);
+        }
+
+        .slide.visible .reveal,
+        .slide.visible .reveal-left,
+        .slide.visible .reveal-scale {
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        /* Stagger children */
+        .reveal:nth-child(1), .reveal-left:nth-child(1) { transition-delay: 0.1s; }
+        .reveal:nth-child(2), .reveal-left:nth-child(2) { transition-delay: 0.2s; }
+        .reveal:nth-child(3), .reveal-left:nth-child(3) { transition-delay: 0.3s; }
+        .reveal:nth-child(4), .reveal-left:nth-child(4) { transition-delay: 0.4s; }
+        .reveal:nth-child(5), .reveal-left:nth-child(5) { transition-delay: 0.5s; }
+        .reveal:nth-child(6), .reveal-left:nth-child(6) { transition-delay: 0.6s; }
+
+        /* ===========================================
+           SLIDE BACKGROUNDS
+           =========================================== */
+        .slide-dark {
+            background: var(--bg-dark);
+        }
+
+        .slide-blue {
+            background: var(--bg-primary);
+        }
+
+        .slide-gradient {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #16213e 50%, var(--bg-dark) 100%);
+        }
+
+        .slide-split {
+            background: linear-gradient(90deg, var(--bg-primary) 50%, var(--bg-dark) 50%);
+        }
+
+        .slide-crimson {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, rgba(220, 20, 60, 0.15) 100%);
+        }
+
+        .slide-gold {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, rgba(255, 215, 0, 0.08) 100%);
+        }
+
+        .slide-neon {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, rgba(212, 255, 0, 0.06) 100%);
+        }
+
+        /* ===========================================
+           GRID PATTERNS (GAMING ENERGY)
+           =========================================== */
+        .grid-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        /* ===========================================
+           HALFTONE TEXTURE
+           =========================================== */
+        .halftone::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 12px 12px;
+            pointer-events: none;
+        }
+
+        /* ===========================================
+           TYPOGRAPHY
+           =========================================== */
+        h1 {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: var(--title-size);
+            line-height: 1.05;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: var(--h2-size);
+            line-height: 1.15;
+            letter-spacing: -0.01em;
+        }
+
+        h3 {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: var(--h3-size);
+            line-height: 1.2;
+        }
+
+        p, li {
+            font-family: var(--font-body);
+            font-size: var(--body-size);
+            line-height: 1.6;
+            color: var(--text-muted);
+        }
+
+        .subtitle {
+            font-family: var(--font-body);
+            font-size: var(--subtitle-size);
+            color: var(--text-muted);
+        }
+
+        /* ===========================================
+           BADGES / TAGS (GAMING ENERGY)
+           =========================================== */
+        .badge {
+            display: inline-block;
+            padding: clamp(0.2rem, 0.5vw, 0.4rem) clamp(0.5rem, 1vw, 1rem);
+            border-radius: 4px;
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .badge-gold {
+            background: var(--accent-gold);
+            color: var(--bg-dark);
+        }
+
+        .badge-crimson {
+            background: var(--accent-crimson);
+            color: var(--text-light);
+        }
+
+        .badge-neon {
+            background: var(--accent-neon);
+            color: var(--bg-dark);
+        }
+
+        .badge-blue {
+            background: var(--bg-primary);
+            color: var(--text-light);
+        }
+
+        .badge-outline {
+            background: transparent;
+            border: 1px solid var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        /* ===========================================
+           FEATURE CARDS
+           =========================================== */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+            gap: clamp(0.5rem, 1.5vw, 1rem);
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: clamp(0.75rem, 2vw, 1.5rem);
+            transition: border-color 0.3s ease, transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent-gold);
+            transform: translateY(-2px);
+        }
+
+        .feature-card .icon {
+            font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+            margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);
+        }
+
+        .feature-card h3 {
+            font-size: clamp(0.8rem, 1.5vw, 1rem);
+            margin-bottom: clamp(0.2rem, 0.5vw, 0.4rem);
+            color: var(--text-light);
+        }
+
+        .feature-card p {
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* ===========================================
+           CODE BLOCKS
+           =========================================== */
+        .code-block {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: clamp(0.75rem, 2vw, 1.25rem);
+            font-family: var(--font-body);
+            font-size: var(--code-size);
+            line-height: 1.6;
+            overflow: hidden;
+            max-width: 100%;
+        }
+
+        .code-block code {
+            color: var(--text-muted);
+            white-space: pre;
+            display: block;
+        }
+
+        .code-keyword { color: var(--bg-primary); }
+        .code-string { color: var(--accent-neon); }
+        .code-comment { color: #666; }
+        .code-func { color: var(--accent-gold); }
+
+        /* ===========================================
+           FLOW DIAGRAM
+           =========================================== */
+        .flow {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.3rem, 1vw, 0.75rem);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .flow-node {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: clamp(0.4rem, 1vw, 0.75rem) clamp(0.6rem, 1.5vw, 1rem);
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            text-align: center;
+            min-width: clamp(60px, 10vw, 100px);
+        }
+
+        .flow-node.highlight {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.15);
+        }
+
+        .flow-arrow {
+            color: var(--accent-gold);
+            font-size: var(--body-size);
+        }
+
+        /* ===========================================
+           STAT BLOCKS
+           =========================================== */
+        .stat-row {
+            display: flex;
+            gap: clamp(1rem, 3vw, 3rem);
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .stat-block {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 4vw, 3rem);
+            font-weight: 800;
+            color: var(--accent-gold);
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-family: var(--font-body);
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            margin-top: clamp(0.2rem, 0.5vw, 0.4rem);
+        }
+
+        /* ===========================================
+           TWO-COLUMN LAYOUT
+           =========================================== */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(1rem, 3vw, 3rem);
+            align-items: start;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        @media (max-width: 600px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ===========================================
+           EMBED PREVIEW (DISCORD-STYLE)
+           =========================================== */
+        .embed-preview {
+            background: #2b2d31;
+            border-radius: 4px;
+            padding: clamp(0.5rem, 1.5vw, 1rem);
+            border-left: 4px solid var(--win-green);
+            max-width: min(90vw, 450px);
+            font-size: var(--small-size);
+        }
+
+        .embed-preview.loss {
+            border-left-color: var(--loss-red);
+        }
+
+        .embed-preview.live {
+            border-left-color: var(--discord-blurple);
+        }
+
+        .embed-preview.rivalry {
+            border-left-color: #9b59b6;
+        }
+
+        .embed-title {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: clamp(0.75rem, 1.3vw, 0.95rem);
+            color: var(--text-light);
+            margin-bottom: clamp(0.2rem, 0.5vw, 0.35rem);
+        }
+
+        .embed-field {
+            color: #b5bac1;
+            font-size: var(--small-size);
+            line-height: 1.4;
+        }
+
+        .embed-field strong {
+            color: var(--text-light);
+        }
+
+        /* ===========================================
+           SECTION NUMBERS (CREATIVE VOLTAGE)
+           =========================================== */
+        .section-num {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: clamp(3rem, 10vw, 8rem);
+            position: absolute;
+            top: clamp(0.5rem, 2vw, 1.5rem);
+            left: clamp(0.5rem, 2vw, 1.5rem);
+            color: rgba(255, 255, 255, 0.03);
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        /* ===========================================
+           NEON GLOW EFFECTS
+           =========================================== */
+        .glow-text {
+            text-shadow: 0 0 20px rgba(0, 102, 255, 0.5), 0 0 40px rgba(0, 102, 255, 0.2);
+        }
+
+        .glow-gold {
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5), 0 0 40px rgba(255, 215, 0, 0.2);
+        }
+
+        .neon-border {
+            box-shadow: 0 0 15px rgba(0, 102, 255, 0.3), inset 0 0 15px rgba(0, 102, 255, 0.1);
+            border: 1px solid rgba(0, 102, 255, 0.4);
+        }
+
+        /* ===========================================
+           TITLE SLIDE SPECIFIC
+           =========================================== */
+        .title-slide {
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #003399 40%, var(--bg-dark) 100%);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .title-slide .slide-content {
+            align-items: center;
+            gap: var(--content-gap);
+        }
+
+        .title-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* ===========================================
+           TECH PILL
+           =========================================== */
+        .tech-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: clamp(0.3rem, 0.8vw, 0.5rem);
+            justify-content: center;
+        }
+
+        .tech-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: clamp(0.15rem, 0.4vw, 0.3rem) clamp(0.4rem, 0.8vw, 0.7rem);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-size: var(--small-size);
+            color: var(--text-muted);
+        }
+
+        /* ===========================================
+           TIMELINE
+           =========================================== */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.4rem, 1vh, 0.8rem);
+            position: relative;
+            padding-left: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, var(--bg-primary), var(--accent-gold), var(--accent-neon));
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-left: clamp(0.5rem, 1vw, 1rem);
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: calc(-1 * clamp(1rem, 2vw, 1.5rem) + -1px);
+            top: 0.4em;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-gold);
+        }
+
+        .timeline-item h3 {
+            font-size: clamp(0.8rem, 1.3vw, 1rem);
+            color: var(--text-light);
+        }
+
+        .timeline-item p {
+            font-size: var(--small-size);
+        }
+
+        /* ===========================================
+           LIST STYLES
+           =========================================== */
+        .check-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.3rem, 0.8vh, 0.6rem);
+        }
+
+        .check-list li {
+            font-size: var(--body-size);
+            color: var(--text-muted);
+            padding-left: 1.5em;
+            position: relative;
+        }
+
+        .check-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.4em;
+            width: 8px;
+            height: 8px;
+            border-radius: 2px;
+            background: var(--accent-neon);
+        }
+
+        /* ===========================================
+           SLIDE-SPECIFIC HELPERS
+           =========================================== */
+        .centered {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .gap-sm { gap: clamp(0.5rem, 1vw, 0.75rem); }
+        .gap-md { gap: clamp(0.75rem, 1.5vw, 1.5rem); }
+        .gap-lg { gap: var(--content-gap); }
+
+        .accent { color: var(--accent-gold); }
+        .accent-blue { color: var(--bg-primary); }
+        .accent-neon { color: var(--accent-neon); }
+        .accent-crimson { color: var(--accent-crimson); }
+
+        .mt-auto { margin-top: auto; }
+
+        /* ===========================================
+           ARCHITECTURE BOXES
+           =========================================== */
+        .arch-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: clamp(0.5rem, 1.5vw, 1rem);
+        }
+
+        .arch-box h3 {
+            font-size: clamp(0.75rem, 1.2vw, 0.9rem);
+            color: var(--accent-gold);
+            margin-bottom: clamp(0.2rem, 0.5vw, 0.35rem);
+        }
+
+        .arch-box p, .arch-box li {
+            font-size: var(--small-size);
+        }
+
+        /* ===========================================
+           ROAST BUBBLE
+           =========================================== */
+        .roast-bubble {
+            background: rgba(220, 20, 60, 0.12);
+            border: 1px solid rgba(220, 20, 60, 0.3);
+            border-radius: 12px;
+            padding: clamp(0.75rem, 2vw, 1.25rem);
+            font-style: italic;
+            font-size: var(--body-size);
+            color: #f0a0a0;
+            max-width: min(90vw, 600px);
+            position: relative;
+        }
+
+        .roast-bubble::before {
+            content: '"';
+            font-family: var(--font-display);
+            font-size: clamp(1.5rem, 3vw, 2.5rem);
+            color: var(--accent-crimson);
+            position: absolute;
+            top: clamp(0.2rem, 0.5vw, 0.4rem);
+            left: clamp(0.4rem, 1vw, 0.8rem);
+            line-height: 1;
+        }
+
+        .roast-bubble .roast-text {
+            padding-left: clamp(1rem, 2vw, 1.5rem);
+        }
+
+        /* ===========================================
+           COMPETITIVE RANK BAR
+           =========================================== */
+        .rank-bar {
+            display: flex;
+            align-items: center;
+            gap: clamp(0.3rem, 0.8vw, 0.5rem);
+            padding: clamp(0.3rem, 0.8vw, 0.5rem) 0;
+        }
+
+        .rank-bar .rank-name {
+            font-size: var(--small-size);
+            color: var(--text-light);
+            min-width: clamp(40px, 6vw, 60px);
+        }
+
+        .rank-bar .bar-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .rank-bar .bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 1s var(--ease-out-expo);
+        }
+
+        .rank-bar .bar-value {
+            font-size: var(--small-size);
+            color: var(--text-muted);
+            min-width: clamp(20px, 3vw, 35px);
+            text-align: right;
+        }
+
+    </style>
+</head>
+<body>
+    <!-- === PROGRESS BAR === -->
+    <div class="progress-bar" id="progressBar"></div>
+
+    <!-- === SLIDE COUNTER === -->
+    <div class="slide-counter" id="slideCounter">1 / 22</div>
+
+    <!-- === NAV DOTS === -->
+    <nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+
+    <!-- ============================================================
+         SLIDE 1: TITLE
+         ============================================================ -->
+    <section class="slide title-slide halftone" id="slide-1">
+        <div class="slide-content centered gap-md">
+            <div class="reveal">
+                <span class="badge badge-neon">DISCORD BOT</span>
+            </div>
+            <h1 class="reveal glow-text">LeagueSpy</h1>
+            <p class="subtitle reveal" style="max-width: min(80vw, 600px);">Track your friends' League matches. Roast their losses in Spanish. Crown the weekly champion.</p>
+            <div class="reveal tech-pills" style="margin-top: clamp(0.5rem, 1vw, 1rem);">
+                <span class="tech-pill">Python 3.12</span>
+                <span class="tech-pill">discord.py</span>
+                <span class="tech-pill">Playwright</span>
+                <span class="tech-pill">Oracle DB</span>
+                <span class="tech-pill">vLLM + Qwen3.5</span>
+                <span class="tech-pill">Pillow</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 2: THE PROBLEM
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-2">
+        <span class="section-num">01</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">The Problem</h2>
+            <p class="reveal" style="max-width: min(80vw, 700px);">Riot's API has strict rate limits and requires developer approval. Third-party sites show stats, but they don't push notifications. You want to know the moment your friend loses another ranked game so you can flame them properly.</p>
+            <div class="feature-grid reveal" style="margin-top: clamp(0.5rem, 1vw, 1rem);">
+                <div class="feature-card">
+                    <div class="icon">🔒</div>
+                    <h3>API Gatekeeping</h3>
+                    <p>Riot API needs approval and has harsh rate limits</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📊</div>
+                    <h3>Passive Stats</h3>
+                    <p>Sites show data, but you have to go look for it yourself</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🤐</div>
+                    <h3>No Push</h3>
+                    <p>Nobody's alerting your Discord when your friend goes 0/8</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 3: THE SOLUTION
+         ============================================================ -->
+    <section class="slide slide-gradient halftone" id="slide-3">
+        <span class="section-num">02</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">The Solution: <span class="accent">LeagueSpy</span></h2>
+            <p class="reveal" style="max-width: min(80vw, 700px);">A Discord bot that scrapes leagueofgraphs.com with a stealth browser, stores matches in Oracle Database, and announces every game in your server. Wins get a green embed. Losses get roasted in Spanish by a local LLM.</p>
+            <div class="stat-row reveal" style="margin-top: clamp(0.5rem, 1vw, 1rem);">
+                <div class="stat-block">
+                    <div class="stat-number">5min</div>
+                    <div class="stat-label">Poll interval</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-number">7</div>
+                    <div class="stat-label">Slash commands</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-number">165</div>
+                    <div class="stat-label">Tests passing</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-number">$0</div>
+                    <div class="stat-label">API costs</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 4: CORE FEATURES (1/2)
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-4">
+        <span class="section-num">03</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Core Features</h2>
+            <div class="feature-grid reveal">
+                <div class="feature-card">
+                    <div class="icon">🕵️</div>
+                    <h3>Stealth Scraping</h3>
+                    <p>Playwright with spoofed navigator, cookie consent, concurrent tab pool</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🏆</div>
+                    <h3>Champion Icons</h3>
+                    <p>Every embed shows the champion thumbnail from Riot's Data Dragon CDN</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">📢</div>
+                    <h3>Rich Embeds</h3>
+                    <p>Champion, KDA, win/loss, game mode, duration, profile link</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🎬</div>
+                    <h3>Summary GIF</h3>
+                    <p>Animated 8-hour recap at 00:00, 08:00, 16:00 Madrid time</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">👥</div>
+                    <h3>Multi-Account</h3>
+                    <p>Track players across multiple summoner accounts (smurfs)</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon">🗄️</div>
+                    <h3>Oracle Database</h3>
+                    <p>Match history storage, deduplication, streak tracking</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 5: CORE FEATURES (2/2)
+         ============================================================ -->
+    <section class="slide slide-gradient" id="slide-5">
+        <span class="section-num">04</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">v2 Features</h2>
+            <div class="feature-grid reveal">
+                <div class="feature-card" style="border-color: rgba(220, 20, 60, 0.3);">
+                    <div class="icon">🔥</div>
+                    <h3>Spanish Roasts</h3>
+                    <p>LLM-powered trash talk on every loss, escalating with streaks</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(255, 215, 0, 0.3);">
+                    <div class="icon">📊</div>
+                    <h3>Tilt Score</h3>
+                    <p>0-100 composite from loss streak, KDA decay, death rate, surrenders</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(0, 102, 255, 0.3);">
+                    <div class="icon">🔴</div>
+                    <h3>Live Alerts</h3>
+                    <p>Blue embed when someone starts a game, cleared when it ends</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(155, 89, 182, 0.3);">
+                    <div class="icon">⚔️</div>
+                    <h3>Rivalry Detection</h3>
+                    <p>Same match, opposite teams? Purple embed with H2H record</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(212, 255, 0, 0.3);">
+                    <div class="icon">👑</div>
+                    <h3>Power Rankings</h3>
+                    <p>Weekly Pillow-rendered PNG: crown for #1, clown for last</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(88, 101, 242, 0.3);">
+                    <div class="icon">⌨️</div>
+                    <h3>Slash Commands</h3>
+                    <p>7 commands under /spy: add, remove, stats, leaderboard, roast, champions, h2h</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 6: ARCHITECTURE OVERVIEW
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-6">
+        <span class="section-num">05</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Architecture</h2>
+            <div class="flow reveal">
+                <div class="flow-node">Discord<br><small style="color:var(--discord-blurple)">Gateway</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node highlight">bot.py<br><small style="color:var(--accent-gold)">Core Loop</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">scraper.py<br><small style="color:var(--accent-neon)">Playwright</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">leagueofgraphs<br><small style="color:var(--text-muted)">.com</small></div>
+            </div>
+            <div class="flow reveal">
+                <div class="flow-node">database.py<br><small style="color:var(--oracle-red)">Oracle DB</small></div>
+                <span class="flow-arrow">&#8592;</span>
+                <div class="flow-node highlight">bot.py<br><small style="color:var(--accent-gold)">Core Loop</small></div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">embeds.py<br><small style="color:var(--win-green)">Discord Embeds</small></div>
+            </div>
+            <div class="flow reveal">
+                <div class="flow-node">cogs/<br><small style="color:var(--accent-crimson)">roast, live, cmds, analytics</small></div>
+                <span class="flow-arrow">&#8592;</span>
+                <div class="flow-node highlight">new_matches<br><small style="color:var(--accent-gold)">deque(100)</small></div>
+                <span class="flow-arrow">&#8592;</span>
+                <div class="flow-node">llm.py<br><small style="color:var(--text-muted)">vLLM Client</small></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 7: SCRAPER DEEP DIVE
+         ============================================================ -->
+    <section class="slide slide-gradient halftone" id="slide-7">
+        <span class="section-num">06</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Stealth Scraper</h2>
+            <div class="two-col">
+                <div class="reveal">
+                    <h3 style="color: var(--accent-neon); margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Anti-Detection</h3>
+                    <ul class="check-list">
+                        <li>navigator.webdriver spoofed to false</li>
+                        <li>Fake browser plugins injected</li>
+                        <li>Cookie consent auto-handled</li>
+                        <li>3 concurrent tabs (semaphore)</li>
+                        <li>Warm-up page load before real scraping</li>
+                    </ul>
+                </div>
+                <div class="reveal">
+                    <h3 style="color: var(--accent-gold); margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Extraction Pipeline</h3>
+                    <ul class="check-list">
+                        <li>_extract_champion (img alt text)</li>
+                        <li>_extract_kda (tooltip spans)</li>
+                        <li>_extract_game_mode (tag text)</li>
+                        <li>_extract_duration (time string)</li>
+                        <li>Match details: 10 players + bans</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 8: DISCORD EMBEDS
+         ============================================================ -->
+    <section class="slide slide-dark" id="slide-8">
+        <span class="section-num">07</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Discord Embeds</h2>
+            <p class="reveal subtitle">Green for wins. Red for losses. Purple for rivalries. Blue for live.</p>
+            <div class="two-col reveal" style="max-width: min(90vw, 800px);">
+                <div style="display:flex; flex-direction:column; gap: clamp(0.4rem, 1vw, 0.75rem);">
+                    <div class="embed-preview">
+                        <div class="embed-title">jasper won as Jinx</div>
+                        <div class="embed-field"><strong>KDA:</strong> 12/3/8 (6.67)<br><strong>Mode:</strong> Ranked Solo<br><strong>Duration:</strong> 28:41</div>
+                    </div>
+                    <div class="embed-preview loss">
+                        <div class="embed-title">jasper lost as Yasuo</div>
+                        <div class="embed-field"><strong>KDA:</strong> 2/9/1 (0.33)<br><strong>Mode:</strong> Ranked Solo<br><strong>Duration:</strong> 22:15</div>
+                    </div>
+                </div>
+                <div style="display:flex; flex-direction:column; gap: clamp(0.4rem, 1vw, 0.75rem);">
+                    <div class="embed-preview live">
+                        <div class="embed-title">jasper is in a game!</div>
+                        <div class="embed-field"><strong>Champion:</strong> Thresh<br><strong>Mode:</strong> Ranked Solo</div>
+                    </div>
+                    <div class="embed-preview rivalry">
+                        <div class="embed-title">RIVALIDAD DETECTADA</div>
+                        <div class="embed-field"><strong>jasper</strong> vs <strong>friend1</strong><br>All-time: 14W - 11L</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 9: ROAST ENGINE
+         ============================================================ -->
+    <section class="slide slide-crimson halftone" id="slide-9">
+        <span class="section-num">08</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Spanish Roast Engine <span class="accent-crimson">🔥</span></h2>
+            <p class="reveal subtitle">Every loss triggers a locally generated Spanish roast via vLLM + Qwen3.5:9B.</p>
+            <div class="two-col">
+                <div class="reveal">
+                    <h3 style="margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Escalation Rules</h3>
+                    <ul class="check-list">
+                        <li><span class="accent">Single loss</span> = mild jab</li>
+                        <li><span class="accent-crimson">2+ streak</span> = maximum savagery</li>
+                        <li><span class="accent-crimson">0 kills</span> = special trigger</li>
+                        <li><span class="accent-neon">Perfect KDA</span> = backhanded compliment</li>
+                    </ul>
+                </div>
+                <div class="reveal">
+                    <div class="roast-bubble">
+                        <div class="roast-text">Jasper en Yasuo otra vez, 2/9/1. A este paso Riot va a crear una skin llamada "Yasuo Feedeado" solo para ti. Tus compas deben rezar cuando te ven lockearlo.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 10: ROAST DEDUPLICATION
+         ============================================================ -->
+    <section class="slide slide-gradient" id="slide-10">
+        <span class="section-num">09</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Never Repeats Itself</h2>
+            <p class="reveal subtitle" style="max-width: min(80vw, 600px);">The last 5 roasts for each player are stored in Oracle and fed back to the LLM with "No repitas estas frases:" so every roast is unique.</p>
+            <div class="flow reveal" style="margin-top: clamp(0.5rem, 1vw, 1rem);">
+                <div class="flow-node">Loss<br>Detected</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">classify<br>_trigger()</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node highlight">build_roast<br>_context()</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">vLLM<br>Qwen3.5:9B</div>
+                <span class="flow-arrow">&#8594;</span>
+                <div class="flow-node">Discord<br>+ Oracle</div>
+            </div>
+            <div class="code-block reveal" style="max-width: min(90vw, 650px); margin-top: clamp(0.5rem, 1vw, 1rem); text-align: left;">
+                <code><span class="code-comment"># Roast history prevents repetition</span>
+<span class="code-func">build_roast_context</span>(match, streak, tilt_score)
+  <span class="code-keyword">+</span> <span class="code-string">"No repitas estas frases:"</span>
+  <span class="code-keyword">+</span> last_5_roasts <span class="code-keyword">from</span> Oracle DB</code>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 11: TILT SCORE
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-11">
+        <span class="section-num">10</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Tilt Score <span class="accent">(0-100)</span></h2>
+            <p class="reveal subtitle">Composite metric that quantifies how tilted a player is. Fed to the roast engine for accuracy.</p>
+            <div class="reveal" style="max-width: min(90vw, 600px); margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <div class="rank-bar">
+                    <span class="rank-name" style="color: var(--accent-crimson);">Loss Streak</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 85%; background: var(--accent-crimson);"></div></div>
+                    <span class="bar-value">0-40</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name" style="color: var(--accent-gold);">KDA Decay</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 62%; background: var(--accent-gold);"></div></div>
+                    <span class="bar-value">0-25</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name" style="color: var(--bg-primary);">Death Rate</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 50%; background: var(--bg-primary);"></div></div>
+                    <span class="bar-value">0-20</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name" style="color: var(--accent-neon);">FF / Short</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 38%; background: var(--accent-neon);"></div></div>
+                    <span class="bar-value">0-15</span>
+                </div>
+            </div>
+            <p class="reveal" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem); font-size: var(--small-size);">Shown in <span class="accent">/spy stats</span> and fed directly to the LLM prompt for calibrated roast intensity.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 12: SLASH COMMANDS
+         ============================================================ -->
+    <section class="slide slide-gradient halftone" id="slide-12">
+        <span class="section-num">11</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Slash Commands</h2>
+            <div class="code-block reveal" style="max-width: min(90vw, 700px);">
+                <code><span class="code-func">/spy add</span> &lt;slug&gt; &lt;name&gt; [region]  <span class="code-comment"># Track a summoner</span>
+<span class="code-func">/spy remove</span> &lt;slug&gt;               <span class="code-comment"># Stop tracking</span>
+<span class="code-func">/spy stats</span> [player]              <span class="code-comment"># W/L, streak, KDA, tilt</span>
+<span class="code-func">/spy leaderboard</span>                 <span class="code-comment"># Group rankings (min 10)</span>
+<span class="code-func">/spy roast</span> &lt;player&gt;              <span class="code-comment"># On-demand LLM roast</span>
+<span class="code-func">/spy champions</span> &lt;player&gt;          <span class="code-comment"># Top 10 champs + WR</span>
+<span class="code-func">/spy h2h</span> &lt;p1&gt; &lt;p2&gt;              <span class="code-comment"># Head-to-head record</span></code>
+            </div>
+            <p class="reveal subtitle" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem); max-width: min(80vw, 600px);">All commands modify both DB and in-memory state. No restart needed. Registered via discord.py app_commands.Group.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 13: LIVE GAME ALERTS
+         ============================================================ -->
+    <section class="slide slide-dark" id="slide-13">
+        <span class="section-num">12</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Live Game Alerts</h2>
+            <div class="two-col reveal" style="max-width: min(90vw, 800px);">
+                <div>
+                    <h3 style="color: var(--discord-blurple); margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">How It Works</h3>
+                    <ul class="check-list">
+                        <li>Polls profiles every 2 minutes</li>
+                        <li>Detects "currently playing" indicator</li>
+                        <li>Blue embed with champion (if visible)</li>
+                        <li>State tracked in Oracle live_games table</li>
+                        <li>Table truncated on bot startup</li>
+                    </ul>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: clamp(0.4rem, 1vw, 0.75rem);">
+                    <div class="embed-preview live">
+                        <div class="embed-title">jasper just started a game!</div>
+                        <div class="embed-field"><strong>Champion:</strong> Thresh<br><strong>Mode:</strong> Ranked Solo/Duo</div>
+                    </div>
+                    <p style="font-size: var(--small-size); color: var(--text-muted);">Clears automatically when the game ends. No duplicate alerts.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 14: DAILY SUMMARY GIF
+         ============================================================ -->
+    <section class="slide slide-gold halftone" id="slide-14">
+        <span class="section-num">13</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">8-Hour Summary GIF</h2>
+            <p class="reveal subtitle">Sent at 00:00, 08:00, and 16:00 Madrid time. Per-player animated cards with champion icons.</p>
+            <div class="two-col reveal" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <div>
+                    <h3 style="margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Per Player Card</h3>
+                    <ul class="check-list">
+                        <li>Dark Discord theme background</li>
+                        <li>Champion icons from DDragon CDN</li>
+                        <li>W/L record with net +/- badge</li>
+                        <li>Gold accent lines</li>
+                        <li>Pillow-rendered, async executor</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Output Logic</h3>
+                    <ul class="check-list">
+                        <li>4 or fewer players = composite PNG</li>
+                        <li>5+ players = animated GIF</li>
+                        <li>Zero-match players skipped</li>
+                        <li>Runs in asyncio.run_in_executor</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 15: WEEKLY POWER RANKINGS
+         ============================================================ -->
+    <section class="slide slide-gradient grid-bg" id="slide-15">
+        <span class="section-num">14</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Weekly Power Rankings <span class="accent">👑</span></h2>
+            <p class="reveal subtitle">Every Monday at 10:00 Madrid time. Composite score from win rate, KDA, and activity over 7 days.</p>
+            <div class="reveal" style="max-width: min(90vw, 500px); margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <div class="rank-bar">
+                    <span class="rank-name">👑 jasper</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 92%; background: linear-gradient(90deg, var(--accent-gold), var(--accent-neon));"></div></div>
+                    <span class="bar-value">92</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name">friend1</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 78%; background: var(--bg-primary);"></div></div>
+                    <span class="bar-value">78</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name">friend2</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 61%; background: var(--bg-primary);"></div></div>
+                    <span class="bar-value">61</span>
+                </div>
+                <div class="rank-bar">
+                    <span class="rank-name">🤡 friend3</span>
+                    <div class="bar-track"><div class="bar-fill" style="width: 34%; background: var(--accent-crimson);"></div></div>
+                    <span class="bar-value">34</span>
+                </div>
+            </div>
+            <p class="reveal" style="font-size: var(--small-size); margin-top: clamp(0.2rem, 0.5vw, 0.4rem);">Rendered as a dark-themed Pillow PNG with champion icons and win-rate bars.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 16: DATABASE SCHEMA
+         ============================================================ -->
+    <section class="slide slide-dark" id="slide-16">
+        <span class="section-num">15</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Oracle Database Schema</h2>
+            <div class="two-col reveal">
+                <div>
+                    <div class="arch-box" style="margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">
+                        <h3>summoners</h3>
+                        <p>id, player_name, summoner_slug, region, current_streak, longest_win/loss_streak</p>
+                    </div>
+                    <div class="arch-box">
+                        <h3>matches</h3>
+                        <p>id, summoner_id, match_id, champion, win, KDA, cs, gold, kill_participation, vision_score, match_url</p>
+                    </div>
+                </div>
+                <div>
+                    <div class="arch-box" style="margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">
+                        <h3>live_games</h3>
+                        <p>summoner_id (PK), detected_at, champion, game_mode</p>
+                    </div>
+                    <div class="arch-box">
+                        <h3>roast_history</h3>
+                        <p>id, summoner_id, match_id, roast_text, trigger_type, created_at</p>
+                    </div>
+                </div>
+            </div>
+            <p class="reveal subtitle" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">Oracle sequences for auto-incrementing IDs. Three migration scripts: setup_db.sql, migrate_v2.sql, migrate_v3.sql.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 17: TECH STACK
+         ============================================================ -->
+    <section class="slide slide-gradient halftone" id="slide-17">
+        <span class="section-num">16</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Tech Stack</h2>
+            <div class="feature-grid reveal" style="max-width: min(90vw, 900px);">
+                <div class="feature-card" style="border-color: rgba(88, 101, 242, 0.4);">
+                    <div class="icon" style="color: var(--discord-blurple);">🤖</div>
+                    <h3>discord.py 2.7+</h3>
+                    <p>Gateway events, task loops, app_commands, cog system</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(46, 204, 113, 0.4);">
+                    <div class="icon" style="color: var(--win-green);">🎭</div>
+                    <h3>Playwright</h3>
+                    <p>Async stealth browser, bot-detection evasion, 3-tab pool</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(199, 70, 52, 0.4);">
+                    <div class="icon" style="color: var(--oracle-red);">🗃️</div>
+                    <h3>Oracle DB + oracledb</h3>
+                    <p>Sequences, unique constraints, 20+ query methods</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(255, 215, 0, 0.4);">
+                    <div class="icon" style="color: var(--accent-gold);">🧠</div>
+                    <h3>vLLM + Qwen3.5:9B</h3>
+                    <p>OpenAI-compatible /v1/chat/completions, thinking disabled</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(255, 111, 0, 0.4);">
+                    <div class="icon">🖼️</div>
+                    <h3>Pillow</h3>
+                    <p>Summary GIFs, power ranking PNGs, dark Discord theme</p>
+                </div>
+                <div class="feature-card" style="border-color: rgba(212, 255, 0, 0.4);">
+                    <div class="icon" style="color: var(--accent-neon);">⚡</div>
+                    <h3>httpx</h3>
+                    <p>Async HTTP for icon downloads and vLLM client calls</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 18: CHAMPION ICONS
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-18">
+        <span class="section-num">17</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Champion Icon System</h2>
+            <div class="two-col">
+                <div class="reveal">
+                    <h3 style="color: var(--accent-gold); margin-bottom: clamp(0.3rem, 0.8vw, 0.5rem);">Resolution Pipeline</h3>
+                    <ul class="check-list">
+                        <li>DDragon CDN with auto-versioning</li>
+                        <li>6-hour TTL cache for patch updates</li>
+                        <li>normalize_champion_name() handles edge cases</li>
+                        <li>Wukong, Renata Glasc, Nunu special rules</li>
+                        <li>Resized PNGs cached in /tmp/leaguespy_icons/</li>
+                    </ul>
+                </div>
+                <div class="reveal">
+                    <div class="code-block" style="text-align: left;">
+                        <code><span class="code-comment"># CDN URL pattern</span>
+https://ddragon.leagueoflegends.com
+  /cdn/<span class="code-string">{version}</span>/img/champion/<span class="code-string">{key}</span>.png
+
+<span class="code-comment"># Embed integration</span>
+embed.<span class="code-func">set_thumbnail</span>(url=icon_url)
+
+<span class="code-comment"># Summary GIF: download + resize</span>
+<span class="code-func">download_icon</span>(champion) <span class="code-keyword">-></span> PIL.Image</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 19: PROJECT STRUCTURE
+         ============================================================ -->
+    <section class="slide slide-gradient" id="slide-19">
+        <span class="section-num">18</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Project Structure</h2>
+            <div class="code-block reveal" style="max-width: min(90vw, 650px);">
+                <code><span class="code-func">src/</span>
+  bot.py             <span class="code-comment"># Core + task loops + cog loader</span>
+  scraper.py         <span class="code-comment"># Playwright stealth browser</span>
+  database.py        <span class="code-comment"># Oracle DB (20+ methods)</span>
+  embeds.py          <span class="code-comment"># Rich embed builder</span>
+  models.py          <span class="code-comment"># SummonerConfig, MatchResult</span>
+  champion_icons.py  <span class="code-comment"># DDragon CDN resolver</span>
+  daily_summary.py   <span class="code-comment"># 8-hour GIF renderer</span>
+  llm.py             <span class="code-comment"># vLLM async client</span>
+  analytics.py       <span class="code-comment"># Tilt score computation</span>
+  rankings.py        <span class="code-comment"># Weekly PNG renderer</span>
+  <span class="code-func">cogs/</span>
+    roast.py         <span class="code-comment"># Spanish roast engine</span>
+    commands.py      <span class="code-comment"># 7 slash commands</span>
+    analytics.py     <span class="code-comment"># Rivalries + rankings loop</span>
+    live.py          <span class="code-comment"># In-game detection</span></code>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 20: GETTING STARTED
+         ============================================================ -->
+    <section class="slide slide-dark grid-bg" id="slide-20">
+        <span class="section-num">19</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Getting Started</h2>
+            <div class="reveal">
+                <div class="code-block" style="max-width: min(90vw, 700px);">
+                    <code><span class="code-comment"># One-command install</span>
+curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
+
+<span class="code-comment"># Or manual setup</span>
+git clone https://github.com/jasperan/LeagueSpy.git
+<span class="code-keyword">cd</span> LeagueSpy
+conda create -n leaguespy python=3.12 -y
+conda activate leaguespy
+pip install -r requirements.txt
+playwright install chromium
+
+<span class="code-comment"># Set up Oracle DB</span>
+sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/setup_db.sql
+
+<span class="code-comment"># Run</span>
+python -m src.bot</code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 21: CONFIGURATION
+         ============================================================ -->
+    <section class="slide slide-gradient halftone" id="slide-21">
+        <span class="section-num">20</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Configuration</h2>
+            <div class="code-block reveal" style="max-width: min(90vw, 600px);">
+                <code><span class="code-comment"># config.yaml</span>
+<span class="code-func">discord</span>:
+  token: <span class="code-string">"YOUR_TOKEN"</span>
+  channel_id: <span class="code-string">123456789</span>
+
+<span class="code-func">oracle</span>:
+  user: <span class="code-string">"leaguespy"</span>
+  dsn: <span class="code-string">"localhost:1523/FREEPDB1"</span>
+
+<span class="code-func">features</span>:
+  roast: <span class="code-keyword">true</span>
+  analytics: <span class="code-keyword">true</span>
+  live_alerts: <span class="code-keyword">true</span>
+  slash_commands: <span class="code-keyword">true</span>
+
+<span class="code-func">players</span>:
+  - name: <span class="code-string">"jasper"</span>
+    summoners:
+      - slug: <span class="code-string">"jasper-1971"</span>
+        region: <span class="code-string">"euw"</span></code>
+            </div>
+            <p class="reveal subtitle" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">Each feature can be toggled independently. The bot works fine without vLLM; roasts just stay silent.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 22: DESIGN DECISIONS
+         ============================================================ -->
+    <section class="slide slide-dark" id="slide-22">
+        <span class="section-num">21</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">Key Design Decisions</h2>
+            <div class="feature-grid reveal">
+                <div class="feature-card">
+                    <h3>Embed Before Insert</h3>
+                    <p>Discord embed sent before DB insert. Lost announcements are worse than duplicates.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Deque Decoupling</h3>
+                    <p>new_matches deque (maxlen=100) decouples detection from roast generation.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Zero-Cost Rivalry</h3>
+                    <p>Just a DB query on match_id after insert. No extra scraping needed.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Graceful Degradation</h3>
+                    <p>vLLM down? Roasts skip silently. Match details fail? Basic embed still fires.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>KDA: inf on 0 Deaths</h3>
+                    <p>float("inf") instead of division error. Clean, intentional edge case handling.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Thinking Disabled</h3>
+                    <p>enable_thinking: false for Qwen3.5. Faster, punchier roast output.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 23: TESTING
+         ============================================================ -->
+    <section class="slide slide-neon grid-bg" id="slide-23">
+        <span class="section-num">22</span>
+        <div class="slide-content gap-md centered">
+            <h2 class="reveal">Testing</h2>
+            <div class="stat-row reveal">
+                <div class="stat-block">
+                    <div class="stat-number" style="color: var(--accent-neon);">165</div>
+                    <div class="stat-label">Tests passing</div>
+                </div>
+                <div class="stat-block">
+                    <div class="stat-number" style="color: var(--accent-neon);">14</div>
+                    <div class="stat-label">Modules covered</div>
+                </div>
+            </div>
+            <div class="reveal" style="max-width: min(80vw, 600px); text-align: left; margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <p style="font-size: var(--small-size); line-height: 1.8;">Scraper, database, embeds, champion icons, summary GIF, scheduler logic, vLLM client, roast engine, slash commands, tilt score, power rankings, analytics cog, live game alerts, match detail parsing.</p>
+            </div>
+            <div class="code-block reveal" style="max-width: min(90vw, 400px); margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <code>conda activate leaguespy
+pytest tests/ -v</code>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 24: ROADMAP
+         ============================================================ -->
+    <section class="slide slide-dark" id="slide-24">
+        <span class="section-num">23</span>
+        <div class="slide-content gap-md">
+            <h2 class="reveal">What's Next</h2>
+            <div class="timeline reveal" style="max-width: min(80vw, 600px);">
+                <div class="timeline-item">
+                    <h3>Multi-Server Support</h3>
+                    <p>Deploy to multiple Discord servers with per-server config</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Oracle AI Vector Search</h3>
+                    <p>Embed match contexts for smarter, context-aware roasts</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Draft Phase Alerts</h3>
+                    <p>Scrape champion select to predict win probability before the game starts</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Voice Channel Roasts</h3>
+                    <p>TTS roast delivery when a player joins voice after a loss</p>
+                </div>
+                <div class="timeline-item">
+                    <h3>Web Dashboard</h3>
+                    <p>Historical stats, rivalry graphs, tilt heatmaps</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         SLIDE 25: CLOSING
+         ============================================================ -->
+    <section class="slide title-slide halftone" id="slide-25">
+        <div class="slide-content centered gap-md">
+            <div class="reveal">
+                <span class="badge badge-gold">OPEN SOURCE</span>
+            </div>
+            <h1 class="reveal glow-text">LeagueSpy</h1>
+            <p class="subtitle reveal">Track. Roast. Dominate.</p>
+            <div class="reveal" style="display: flex; gap: clamp(0.5rem, 1vw, 1rem); margin-top: clamp(0.5rem, 1vw, 1rem); flex-wrap: wrap; justify-content: center;">
+                <span class="badge badge-outline">github.com/jasperan/LeagueSpy</span>
+                <span class="badge badge-neon">MIT License</span>
+            </div>
+            <div class="reveal tech-pills" style="margin-top: clamp(0.3rem, 0.8vw, 0.5rem);">
+                <span class="tech-pill">Python 3.12</span>
+                <span class="tech-pill">discord.py</span>
+                <span class="tech-pill">Playwright</span>
+                <span class="tech-pill">Oracle DB</span>
+                <span class="tech-pill">vLLM + Qwen3.5</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===========================================
+         JAVASCRIPT: SLIDE CONTROLLER
+         =========================================== -->
+    <script>
+        class SlidePresentation {
+            constructor() {
+                this.slides = document.querySelectorAll('.slide');
+                this.currentSlide = 0;
+                this.totalSlides = this.slides.length;
+                this.isScrolling = false;
+
+                this.setupIntersectionObserver();
+                this.setupKeyboardNav();
+                this.setupTouchNav();
+                this.setupProgressBar();
+                this.setupNavDots();
+                this.setupScrollHandler();
+            }
+
+            /* === INTERSECTION OBSERVER === */
+            setupIntersectionObserver() {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add('visible');
+                            const index = Array.from(this.slides).indexOf(entry.target);
+                            if (index !== -1) {
+                                this.currentSlide = index;
+                                this.updateCounter();
+                                this.updateNavDots();
+                            }
+                        }
+                    });
+                }, {
+                    threshold: 0.5,
+                    rootMargin: '0px'
+                });
+
+                this.slides.forEach(slide => observer.observe(slide));
+            }
+
+            /* === KEYBOARD NAV === */
+            setupKeyboardNav() {
+                document.addEventListener('keydown', (e) => {
+                    switch(e.key) {
+                        case 'ArrowDown':
+                        case 'ArrowRight':
+                        case ' ':
+                        case 'PageDown':
+                            e.preventDefault();
+                            this.goToSlide(Math.min(this.currentSlide + 1, this.totalSlides - 1));
+                            break;
+                        case 'ArrowUp':
+                        case 'ArrowLeft':
+                        case 'PageUp':
+                            e.preventDefault();
+                            this.goToSlide(Math.max(this.currentSlide - 1, 0));
+                            break;
+                        case 'Home':
+                            e.preventDefault();
+                            this.goToSlide(0);
+                            break;
+                        case 'End':
+                            e.preventDefault();
+                            this.goToSlide(this.totalSlides - 1);
+                            break;
+                    }
+                });
+            }
+
+            /* === TOUCH / SWIPE NAV === */
+            setupTouchNav() {
+                let touchStartY = 0;
+                let touchStartX = 0;
+
+                document.addEventListener('touchstart', (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    const deltaY = touchStartY - e.changedTouches[0].clientY;
+                    const deltaX = touchStartX - e.changedTouches[0].clientX;
+
+                    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
+                        if (deltaY > 0) {
+                            this.goToSlide(Math.min(this.currentSlide + 1, this.totalSlides - 1));
+                        } else {
+                            this.goToSlide(Math.max(this.currentSlide - 1, 0));
+                        }
+                    }
+                }, { passive: true });
+            }
+
+            /* === PROGRESS BAR === */
+            setupProgressBar() {
+                this.progressBar = document.getElementById('progressBar');
+                this.updateProgress();
+            }
+
+            setupScrollHandler() {
+                window.addEventListener('scroll', () => {
+                    this.updateProgress();
+                }, { passive: true });
+            }
+
+            updateProgress() {
+                if (!this.progressBar) return;
+                const scrollTop = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+                this.progressBar.style.width = progress + '%';
+            }
+
+            /* === NAV DOTS === */
+            setupNavDots() {
+                const nav = document.getElementById('navDots');
+                if (!nav) return;
+
+                this.slides.forEach((_, i) => {
+                    const dot = document.createElement('button');
+                    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+                    dot.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+                    dot.addEventListener('click', () => this.goToSlide(i));
+                    nav.appendChild(dot);
+                });
+
+                this.dots = nav.querySelectorAll('.nav-dot');
+            }
+
+            updateNavDots() {
+                if (!this.dots) return;
+                this.dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === this.currentSlide);
+                });
+            }
+
+            /* === SLIDE COUNTER === */
+            updateCounter() {
+                const counter = document.getElementById('slideCounter');
+                if (counter) {
+                    counter.textContent = (this.currentSlide + 1) + ' / ' + this.totalSlides;
+                }
+            }
+
+            /* === GO TO SLIDE === */
+            goToSlide(index) {
+                if (index < 0 || index >= this.totalSlides) return;
+                this.slides[index].scrollIntoView({ behavior: 'smooth' });
+                this.currentSlide = index;
+                this.updateCounter();
+                this.updateNavDots();
+            }
+        }
+
+        /* Initialize on DOM ready */
+        document.addEventListener('DOMContentLoaded', () => {
+            new SlidePresentation();
+        });
+    </script>
+</body>
+</html>
