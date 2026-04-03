@@ -1,12 +1,21 @@
+import argparse
 import asyncio
 import logging
+import sys
 import time
 from collections import deque
-import yaml
 import discord
 from datetime import datetime, time as dt_time, timedelta
 from zoneinfo import ZoneInfo
 from discord.ext import commands, tasks
+from src.config import (
+    ConfigError,
+    build_summoner_list as build_summoner_list_from_config,
+    format_config_report,
+    load_config as load_config_file,
+    read_config,
+    validate_config,
+)
 from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
 from src.embeds import build_match_announcement
@@ -14,30 +23,17 @@ from src.commentary import build_commentary
 from src.match_image import render_scoreboard, render_solo_card
 from src.daily_summary import group_by_player, build_summary_image
 from src.trends import render_trends_chart
-from src.models import SummonerConfig, MatchDetails
+from src.models import MatchDetails
 
 logger = logging.getLogger("leaguespy")
 
 
 def load_config(path: str = "config.yaml") -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
+    return load_config_file(path, mode="runtime")
 
 
-def build_summoner_list(config: dict) -> list[SummonerConfig]:
-    default_region = config.get("scraping", {}).get("region", "euw")
-    summoners = []
-    for player in config.get("players", []):
-        name = player["name"]
-        for s in player.get("summoners", []):
-            summoners.append(
-                SummonerConfig(
-                    player_name=name,
-                    slug=s["slug"],
-                    region=s.get("region", default_region),
-                )
-            )
-    return summoners
+def build_summoner_list(config: dict):
+    return build_summoner_list_from_config(config)
 
 
 _SUMMARY_TIME = dt_time(0, 0)
@@ -52,7 +48,13 @@ def should_fire_summary(now: datetime, last_check: datetime) -> bool:
 
 
 class LeagueSpyBot(commands.Bot):
-    def __init__(self, config: dict):
+    def __init__(
+        self,
+        config: dict,
+        *,
+        database_factory=Database,
+        scraper_factory=LeagueOfGraphsScraper,
+    ):
         intents = discord.Intents.default()
         if config.get("features", {}).get("message_content_intent", False):
             intents.message_content = True
@@ -61,8 +63,8 @@ class LeagueSpyBot(commands.Bot):
         self.config = config
         self.channel_id = config["discord"]["channel_id"]
         self.summoners = build_summoner_list(config)
-        self.scraper = LeagueOfGraphsScraper(max_concurrent=3)
-        self.db = Database(
+        self.scraper = scraper_factory(max_concurrent=3)
+        self.db = database_factory(
             user=config["oracle"]["user"],
             password=config["oracle"]["password"],
             dsn=config["oracle"]["dsn"],
@@ -330,20 +332,75 @@ class LeagueSpyBot(commands.Bot):
         await super().close()
 
 
-def main():
+def build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python -m src.bot",
+        description="Run the LeagueSpy Discord bot or validate local setup.",
+    )
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="Path to the LeagueSpy YAML config file (default: config.yaml).",
+    )
+    parser.add_argument(
+        "--check-config",
+        "--validate-config",
+        action="store_true",
+        help="Validate the config and exit without connecting to Discord or Oracle.",
+    )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Run the LeagueSpy doctor/preflight checks and exit.",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="With --doctor, skip live connectivity checks for Oracle/vLLM.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_arg_parser()
+    args = parser.parse_args(argv)
+
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    if not (args.check_config or args.doctor):
+        handlers.append(logging.FileHandler("bot.log"))
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("bot.log"),
-        ],
+        handlers=handlers,
     )
 
-    config = load_config()
+    if args.check_config:
+        try:
+            report = validate_config(read_config(args.config), mode="runtime")
+        except ConfigError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        print(format_config_report(report, args.config))
+        return 0 if report.ok else 1
+
+    if args.doctor:
+        from src.doctor import main as doctor_main
+
+        doctor_args = ["--config", args.config]
+        if args.offline:
+            doctor_args.append("--offline")
+        return doctor_main(doctor_args)
+
+    try:
+        config = load_config(args.config)
+    except ConfigError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
     bot = LeagueSpyBot(config)
     bot.run(config["discord"]["token"], log_handler=None)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

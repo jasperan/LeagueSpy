@@ -11,7 +11,7 @@
 [![vLLM](https://img.shields.io/badge/vLLM-Qwen3.5:9B-orange.svg?style=for-the-badge)](https://docs.vllm.ai/)
 [![Pillow](https://img.shields.io/badge/Pillow-GIF_rendering-ff6f00.svg?style=for-the-badge)](https://python-pillow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-165_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-261_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
 
 </div>
 
@@ -46,7 +46,7 @@ Discord bot that scrapes [leagueofgraphs.com](https://www.leagueofgraphs.com) fo
 curl -fsSL https://raw.githubusercontent.com/jasperan/LeagueSpy/main/install.sh | bash
 ```
 
-That clones the repo, creates a conda env, and installs everything. You'll just need to fill in `config.yaml`, set up Oracle DB, and start vLLM if you want the roast engine.
+That clones the repo, creates a **Conda env if Conda is installed** (otherwise a local `.venv`), installs Python deps, installs Playwright Chromium, and runs an offline preflight check. You'll just need to fill in `config.yaml`, set up Oracle DB, and start vLLM if you want the roast engine.
 
 <details><summary>Override install location</summary>
 
@@ -62,10 +62,11 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 - **Stealth scraping** via Playwright with bot-detection evasion (spoofed navigator, cookie consent handling, concurrent tab pool)
 - **Champion icon thumbnails** on every match embed, pulled from Riot's [Data Dragon CDN](https://developer.riotgames.com/docs/lol#data-dragon)
 - **Rich Discord embeds** with champion, KDA, win/loss, game mode, duration, and profile link
-- **8-hour summary GIF** sent at 00:00, 08:00, and 16:00 Madrid time. Per-player animated cards showing net W/L, record, and champion icons played
+- **Daily summary image/GIF** sent at midnight Madrid time, with per-player cards for the last 24 hours plus auto-posted trend charts for active players
 - **Multi-account tracking** for players with multiple summoner accounts (smurfs)
 - **Oracle Database** storage for match history and deduplication
 - **Configurable polling** interval (default: 5 minutes)
+- **Preflight doctor + offline showcase** so you can validate config, dependencies, Playwright, and visual output before wiring Discord/Oracle/vLLM
 - **Per-summoner region** support (EUW, NA, KR, etc.)
 
 ### Spanish Roast Engine (v2)
@@ -81,6 +82,10 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 - `/spy leaderboard` -- group rankings sorted by win rate (min 10 games)
 - `/spy roast <player>` -- on-demand LLM roast using recent match history
 - `/spy champions <player>` -- champion mastery breakdown (top 10, win rates, avg KDA)
+- `/spy trends <player>` -- performance chart over recent games
+- `/spy ask <question>` -- natural-language Q&A over tracked player data
+- `/spy health` -- runtime health snapshot for the browser, DB, LLM config, and tracked players
+- `/spy help` -- in-Discord command reference
 - `/spy h2h <player1> <player2>` -- head-to-head record with last 5 encounters
 
 ### Analytics (v2)
@@ -120,6 +125,20 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
+<details><summary>No Conda? Use a virtualenv instead</summary>
+
+```bash
+git clone https://github.com/jasperan/LeagueSpy.git
+cd LeagueSpy
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+</details>
+
 **2. Set up Oracle Database**
 
 Create the `leaguespy` user in your Oracle instance, then run the schema:
@@ -136,6 +155,8 @@ vllm serve Qwen/Qwen3.5-9B --port 8000
 ```
 
 The bot works without vLLM. The roast engine just stays silent if the endpoint is unavailable.
+
+**Tip:** `config.yaml` also supports environment placeholders like `${DISCORD_BOT_TOKEN}` and `${LEAGUESPY_DSN:-localhost:1523/FREEPDB1}` if you prefer not to hard-code secrets.
 
 **4. Configure**
 
@@ -180,11 +201,19 @@ players:
 
 Enable Developer Mode in Discord settings to copy channel IDs. Set any `features` flag to `false` to disable that module.
 
-**5. Run**
+**5. Validate config + run the preflight doctor**
 
 ```bash
-conda activate leaguespy
-python -m src.bot
+python -m src.bot --check-config --config config.yaml
+python -m src.cli doctor --config config.yaml --offline
+```
+
+The first command performs a strict runtime config check. The second validates the config shape, confirms your Python deps are importable, and checks that Playwright Chromium is installed before you try the full stack.
+
+**6. Run**
+
+```bash
+python -m src.bot --config config.yaml
 ```
 
 ## Adding Players and Smurfs
@@ -221,7 +250,7 @@ You can also add players at runtime with `/spy add <slug> <name> [region]` witho
 
 **Rivalry detection:** When a new match is inserted, the bot checks if another tracked player shares the same match ID with the opposite win value. If so, a purple "RIVALIDAD DETECTADA" embed fires with the all-time head-to-head record.
 
-**Summary GIF:** Three times a day (00:00, 08:00, 16:00 Madrid time), the bot queries all matches from the last 8 hours, groups them by player, renders a Pillow frame per player (dark Discord theme, champion icons, W/L record, net +/- badge), and sends the animated GIF to the channel. Players with zero matches in the window are skipped.
+**Daily summary:** At midnight Madrid time, the bot queries all matches from the last 24 hours, groups them by player, renders a composite summary image (or GIF for larger groups), and sends it to the channel. Players with zero matches in the window are skipped.
 
 **Weekly power rankings:** Every Monday at 10:00 Madrid time, the bot computes a composite score (win rate, KDA, activity) for each player over the last 7 days and renders a ranked PNG. Crown emoji for #1, clown emoji for last place.
 
@@ -230,37 +259,62 @@ You can also add players at runtime with `/spy add <slug> <name> [region]` witho
 ```
 src/
   bot.py             # Bot core with task loops (matches + summary), cog loader
+  cli.py             # User-facing utility commands (doctor + showcase)
+  config.py          # Shared config validation, env interpolation, and reporting helpers
+  doctor.py          # Preflight checks for config, deps, Playwright, Oracle, and vLLM
   scraper.py         # leagueofgraphs scraper (Playwright stealth browser)
   database.py        # Oracle DB layer (oracledb) with 20+ query methods
   embeds.py          # Discord rich embed builder with champion thumbnails
   models.py          # Data models (SummonerConfig, MatchResult)
   champion_icons.py  # Riot DDragon CDN icon resolution and caching
-  daily_summary.py   # 8-hour summary GIF renderer (Pillow)
+  daily_summary.py   # Daily summary image/GIF renderer (Pillow)
   llm.py             # vLLM async client (OpenAI-compatible API)
   analytics.py       # Tilt score computation
   rankings.py        # Weekly power rankings Pillow renderer
+  showcase.py        # Offline artifact generator for walkthroughs and smoke tests
+  sample_data.py     # Bundled fixture-like sample data for showcase/demo flows
   cogs/
     roast.py         # Spanish roast engine (loss triggers, streak escalation)
-    commands.py      # 7 slash commands under /spy group
+    commands.py      # /spy command surface (tracking, trends, ask, health, help, h2h, more)
     analytics.py     # Rivalry detection + weekly rankings task loop
     live.py          # In-game detection alerts
 scripts/
+  readme_walkthrough.sh  # README-style smoke run: doctor + showcase + full pytest
   setup_db.sql       # Oracle schema v1 (sequences + tables)
   migrate_v2.sql     # v2 migration (streaks, live_games, roast_history)
-tests/               # 165 unit and integration tests
+tests/               # 261 unit and integration tests
 assets/
   visual-explainer.html  # Interactive architecture diagram
   slides.html            # Presentation deck
 ```
 
+## Offline Smoke Walkthrough
+
+If you want to validate the repo the way a README-reader would — without Discord credentials, Oracle, or a live vLLM server — run:
+
+```bash
+./scripts/readme_walkthrough.sh
+```
+
+That will:
+
+1. Run `python -m src.cli doctor --config config.example.yaml --offline`
+2. Generate offline showcase artifacts (scoreboard, summary image, trend chart, rankings, sample announcement JSON)
+3. Run the full pytest suite
+
+You can also run the showcase directly:
+
+```bash
+python -m src.cli showcase --output-dir /tmp/leaguespy-showcase
+```
+
 ## Running Tests
 
 ```bash
-conda activate leaguespy
 pytest tests/ -v
 ```
 
-165 tests covering the scraper, database, embeds, champion icons, summary GIF, scheduler logic, vLLM client, roast engine, slash commands, tilt score, power rankings, analytics cog, and live game alerts.
+261 tests covering the scraper, database, embeds, champion icons, summary rendering, scheduler logic, config validation, bot CLI checks, preflight doctor, showcase generation, demo wrappers, vLLM client, roast engine, slash commands, tilt score, power rankings, analytics cog, and live game alerts.
 
 ## License
 

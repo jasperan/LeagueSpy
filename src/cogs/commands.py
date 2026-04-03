@@ -15,6 +15,39 @@ class SpyCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+    def _runtime_health_snapshot(self) -> list[tuple[str, str]]:
+        tracked_players = len({s.player_name for s in self.bot.summoners})
+        enabled_features = sorted(
+            key for key, value in (getattr(self.bot, "features", self.bot.config.get("features", {})) or {}).items()
+            if value
+        )
+
+        checks: list[tuple[str, str]] = [
+            ("Tracked", f"{tracked_players} player(s) / {len(self.bot.summoners)} summoner(s)"),
+            ("Features", ", ".join(enabled_features) or "none"),
+        ]
+
+        db = getattr(self.bot, "db", None)
+        if db is not None and hasattr(db, "ping"):
+            try:
+                checks.append(("Database", "OK" if db.ping() else "No response"))
+            except Exception as exc:
+                checks.append(("Database", f"Error: {exc}"))
+        else:
+            checks.append(("Database", "Unavailable"))
+
+        scraper = getattr(self.bot, "scraper", None)
+        browser_ready = bool(getattr(scraper, "_browser", None))
+        checks.append(("Browser", "Ready" if browser_ready else "Not started yet"))
+
+        llm_cfg = getattr(self.bot, "llm_config", {}) or {}
+        if llm_cfg:
+            checks.append(("LLM", f"Configured ({llm_cfg.get('model', 'unknown model')})"))
+        else:
+            checks.append(("LLM", "Disabled / unconfigured"))
+
+        return checks
+
     spy = app_commands.Group(name="spy", description="LeagueSpy commands")
 
     @spy.command(name="add", description="Add a summoner to tracking")
@@ -269,11 +302,28 @@ class SpyCog(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/spy health",
+            value="Show runtime status for the database, browser session, LLM config, and tracked players.",
+            inline=False,
+        )
+        embed.add_field(
             name="/spy help",
             value="Show this message.",
             inline=False,
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @spy.command(name="health", description="Show runtime health for LeagueSpy")
+    async def _health(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        embed = discord.Embed(
+            title="LeagueSpy Health",
+            colour=discord.Colour.green(),
+            description="Current runtime snapshot for the bot and local integrations.",
+        )
+        for name, value in self._runtime_health_snapshot():
+            embed.add_field(name=name, value=value, inline=False)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @spy.command(name="h2h", description="Head-to-head record")
     @app_commands.describe(player1="First player", player2="Second player")

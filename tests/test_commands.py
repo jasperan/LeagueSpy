@@ -112,3 +112,36 @@ async def test_trends_no_matches(cog, mock_bot):
     interaction.followup.send.assert_called_once()
     call_kwargs = interaction.followup.send.call_args
     assert "no tiene partidas" in str(call_kwargs)
+
+
+@pytest.mark.asyncio
+async def test_health_command_reports_runtime_snapshot(cog, mock_bot):
+    mock_bot.features = {"analytics": True, "slash_commands": True}
+    mock_bot.llm_config = {"model": "qwen3.5:9b"}
+    mock_bot.db.ping.return_value = True
+    mock_bot.scraper._browser = object()
+
+    interaction = AsyncMock()
+    interaction.response = AsyncMock()
+    interaction.followup = AsyncMock()
+
+    await cog._health.callback(cog, interaction)
+
+    interaction.followup.send.assert_called_once()
+    embed = interaction.followup.send.call_args.kwargs["embed"]
+    field_names = [field.name for field in embed.fields]
+    assert "Database" in field_names
+    assert "Browser" in field_names
+    assert "LLM" in field_names
+
+
+@pytest.mark.asyncio
+async def test_help_command_mentions_health(cog):
+    interaction = AsyncMock()
+    interaction.response = AsyncMock()
+
+    await cog._help.callback(cog, interaction)
+
+    interaction.response.send_message.assert_called_once()
+    embed = interaction.response.send_message.call_args.kwargs["embed"]
+    assert any(field.name == "/spy health" for field in embed.fields)

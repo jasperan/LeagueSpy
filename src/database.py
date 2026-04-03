@@ -372,5 +372,12 @@ class Database:
             cur.execute("DELETE FROM live_games WHERE summoner_id = :sid", {"sid": summoner_id})
             self.conn.commit()
 
+    def ping(self) -> bool:
+        """Return True when the current Oracle connection can answer a trivial query."""
+        with self.conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM dual")
+            row = cur.fetchone()
+            return bool(row and row[0] == 1)
+
     def close(self):
         self.conn.close()
