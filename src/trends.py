@@ -189,28 +189,31 @@ def _render_header(draw: ImageDraw.Draw, img: Image.Image, player_name: str, mat
 # Gradient fill
 # ---------------------------------------------------------------------------
 def _draw_gradient_fill(img: Image.Image, points: list[tuple], base_y: int, color_top: tuple, color_bot: tuple):
-    """Draw a gradient-filled area under a line chart."""
+    """Draw a gradient-filled area under a line chart, interpolating from color_top at the line down to color_bot at base_y."""
     if len(points) < 2:
         return
 
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     odraw = ImageDraw.Draw(overlay)
 
-    # Build polygon: line points + bottom edge
-    poly = list(points) + [(points[-1][0], base_y), (points[0][0], base_y)]
-    odraw.polygon(poly, fill=(*color_top[:3], 60))
-
-    # Fade: draw horizontal bands with decreasing alpha
     min_y = min(p[1] for p in points)
+    x_left = points[0][0]
+    x_right = points[-1][0]
+    span = max(1, base_y - min_y)
+
+    # Interpolate RGB between color_top (at line) and color_bot (at baseline),
+    # with alpha fading out toward the baseline.
+    top_rgb = color_top[:3]
+    bot_rgb = color_bot[:3]
     for y_line in range(int(min_y), int(base_y)):
-        progress = (y_line - min_y) / max(1, base_y - min_y)
-        alpha = int(50 * (1 - progress))
+        progress = (y_line - min_y) / span
+        r = int(top_rgb[0] + (bot_rgb[0] - top_rgb[0]) * progress)
+        g = int(top_rgb[1] + (bot_rgb[1] - top_rgb[1]) * progress)
+        b = int(top_rgb[2] + (bot_rgb[2] - top_rgb[2]) * progress)
+        alpha = int(70 * (1 - progress))
         if alpha <= 0:
             continue
-        # Find x-range at this y level from the polygon
-        x_left = points[0][0]
-        x_right = points[-1][0]
-        odraw.line([(x_left, y_line), (x_right, y_line)], fill=(*color_top[:3], alpha), width=1)
+        odraw.line([(x_left, y_line), (x_right, y_line)], fill=(r, g, b, alpha), width=1)
 
     img.paste(Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB"), (0, 0))
 

@@ -23,7 +23,6 @@ from src.commentary import build_commentary
 from src.match_image import render_scoreboard, render_solo_card
 from src.daily_summary import group_by_player, build_summary_image
 from src.trends import render_trends_chart
-from src.models import MatchDetails
 
 logger = logging.getLogger("leaguespy")
 

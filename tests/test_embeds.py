@@ -46,6 +46,8 @@ def test_no_scoreboard_no_image():
     embed = payload["embed"]
     # No image or file when scoreboard_image is None (bot provides solo card separately)
     assert "file" not in payload
+    assert embed.image.url is discord.utils.MISSING or embed.image.url is None
+    assert embed.thumbnail.url is discord.utils.MISSING or embed.thumbnail.url is None
 
 
 def test_scoreboard_replaces_thumbnail():

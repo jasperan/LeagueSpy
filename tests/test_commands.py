@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import discord
+from unittest.mock import AsyncMock, MagicMock
 from src.cogs.commands import SpyCog
 
 

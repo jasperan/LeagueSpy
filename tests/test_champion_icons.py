@@ -1,6 +1,5 @@
 """Tests for champion icon URL resolution and download."""
 
-import pytest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
 

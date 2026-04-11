@@ -4,6 +4,7 @@ import logging
 import discord
 from discord import app_commands
 from discord.ext import commands
+from src.analytics import compute_tilt_score
 from src.models import SummonerConfig
 
 logger = logging.getLogger("leaguespy.commands")
@@ -105,6 +106,8 @@ class SpyCog(commands.Cog):
                     break
             win_rate = round(stats["wins"] / stats["total_games"] * 100, 1)
             streak_str = f"+{streak}" if streak > 0 else str(streak)
+            recent = self.bot.db.get_recent_matches(sid, limit=5)
+            tilt = compute_tilt_score(streak=streak, recent_matches=recent)
             embed = discord.Embed(title=f"Stats: {p_name}", colour=discord.Colour.gold())
             embed.add_field(name="Partidas", value=str(stats["total_games"]), inline=True)
             embed.add_field(name="Win Rate", value=f"{win_rate}%", inline=True)
@@ -116,6 +119,7 @@ class SpyCog(commands.Cog):
             )
             embed.add_field(name="Mejor Racha W", value=str(lw), inline=True)
             embed.add_field(name="Peor Racha L", value=str(ll), inline=True)
+            embed.add_field(name="Tilt", value=f"{tilt}/100", inline=True)
             embeds.append(embed)
         if embeds:
             await interaction.followup.send(embeds=embeds[:10])

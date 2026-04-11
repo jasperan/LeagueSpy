@@ -1,6 +1,5 @@
 """Tests for the visual match scoreboard renderer."""
 
-import pytest
 from unittest.mock import patch
 from PIL import Image
 from io import BytesIO

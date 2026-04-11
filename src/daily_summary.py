@@ -275,7 +275,6 @@ def _render_card_header(player_name: str, matches: list[dict]) -> Image.Image:
     kda_font = _font(13)
     kda_str = f"Avg KDA {avg_kda:.2f}"
     kda_color = _GREEN if avg_kda >= 3.0 else _GOLD if avg_kda >= 2.0 else _LIGHT_GRAY
-    kw = _text_width(draw, kda_str, kda_font)
     draw.text((_MARGIN + 8, record_y + 22), kda_str, fill=kda_color, font=kda_font)
 
     # Win rate ring (right side)

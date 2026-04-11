@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from src.cogs.analytics import AnalyticsCog
+from unittest.mock import MagicMock, AsyncMock
 
 
 @pytest.fixture

@@ -3,8 +3,8 @@ import os
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.scraper import LeagueOfGraphsScraper, _KDA_RE, _MATCH_ID_RE, _MATCH_URL_RE, _DURATION_RE, _EPOCH_RE
-from src.models import SummonerConfig, MatchResult, MatchParticipant, MatchDetails
+from src.scraper import LeagueOfGraphsScraper, _KDA_RE, _MATCH_ID_RE, _DURATION_RE, _EPOCH_RE
+from src.models import SummonerConfig, MatchResult, MatchParticipant
 
 
 def _make_summoner():

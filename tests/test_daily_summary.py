@@ -1,6 +1,5 @@
 """Tests for daily summary image generation."""
 
-import pytest
 from io import BytesIO
 from unittest.mock import patch
 from PIL import Image

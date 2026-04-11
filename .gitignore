@@ -7,6 +7,7 @@ dist/
 build/
 bot.log
 .omx/
+.omc/
 .agents/
 .claude/
 CLAUDE.md

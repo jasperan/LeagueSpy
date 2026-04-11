@@ -45,10 +45,6 @@ class ValidationReport:
     def ok(self) -> bool:
         return not self.errors
 
-    @property
-    def is_valid(self) -> bool:
-        return self.ok
-
     def add_error(self, key: str, message: str) -> None:
         self.errors.append(ValidationIssue(key=key, message=message))
 
@@ -60,9 +56,6 @@ class ValidationReport:
         lines.extend(f"ERROR {issue.key}: {issue.message}" for issue in self.errors)
         lines.extend(f"WARNING {issue.key}: {issue.message}" for issue in self.warnings)
         return lines
-
-    def render(self, path: str | Path = "config.yaml") -> str:
-        return format_config_report(self, path)
 
 
 def read_config(path: str | Path = "config.yaml") -> dict[str, Any]:
@@ -269,27 +262,6 @@ def load_config(path: str | Path = "config.yaml", *, mode: str = "runtime") -> d
     if report.errors:
         raise ConfigError("\n".join(report.format_lines()))
     return report.normalized
-
-
-def load_and_validate_config(path: str | Path = "config.yaml") -> dict[str, Any]:
-    return load_config(path, mode="runtime")
-
-
-def build_config_report(path: str | Path = "config.yaml", *, mode: str = "doctor") -> ValidationReport:
-    try:
-        config = read_config(path)
-    except ConfigError as exc:
-        report = ValidationReport()
-        report.add_error("config", str(exc))
-        return report
-
-    report = validate_config(config, mode=mode)
-    report.summary = summarize_config(config)
-    return report
-
-
-def count_summoners(config: dict[str, Any]) -> int:
-    return summarize_config(config)["summoner_count"]
 
 
 def enabled_features(config: dict[str, Any]) -> str:

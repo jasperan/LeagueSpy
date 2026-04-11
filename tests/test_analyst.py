@@ -1,4 +1,3 @@
-import pytest
 from src.cogs.analyst import build_analysis_context, ANALYST_SYSTEM_PROMPT
 
 

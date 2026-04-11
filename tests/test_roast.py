@@ -1,5 +1,3 @@
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from src.cogs.roast import build_roast_context, classify_trigger, SYSTEM_PROMPT
 
 

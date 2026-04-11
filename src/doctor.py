@@ -75,9 +75,6 @@ def check_playwright_ready() -> CheckResult:
     return CheckResult("playwright", "ok", f"Chromium launches successfully ({executable_path})")
 
 
-check_playwright_browser = check_playwright_ready
-
-
 def check_oracle_connection(config: dict) -> CheckResult:
     oracle_cfg = config["oracle"]
     try:

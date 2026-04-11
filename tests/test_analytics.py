@@ -1,4 +1,3 @@
-import pytest
 from src.analytics import compute_tilt_score
 
 

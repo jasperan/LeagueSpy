@@ -129,13 +129,6 @@ def _rounded_rect(draw: ImageDraw.Draw, xy, radius, fill):
         draw.rectangle(xy, fill=fill)
 
 
-def _rounded_rect_outline(draw: ImageDraw.Draw, xy, radius, outline, width=2):
-    try:
-        draw.rounded_rectangle(xy, radius=radius, outline=outline, width=width)
-    except AttributeError:
-        draw.rectangle(xy, outline=outline, width=width)
-
-
 def _make_gradient(width: int, height: int, color_left: tuple, color_right: tuple) -> Image.Image:
     """Create a horizontal gradient image (fast: 1px tall then scale)."""
     base = Image.new("RGBA", (width, 1))
@@ -393,7 +386,6 @@ def _render_spotlight(
     badge_font = _font(11)
     badge_text = "VICTORY" if is_win else "DEFEAT"
     badge_color = (34, 139, 34) if is_win else (180, 30, 30)
-    badge_outline = _GREEN if is_win else _RED_ACCENT
     bw = _text_width(draw, badge_text, badge_font) + 16
     bx = _WIDTH - _MARGIN - bw - 8
     by = y + 8
@@ -455,7 +447,6 @@ def _render_bans(
     # "BANS" label
     draw.text((_MARGIN + 4, y + (_BANS_H - 10) // 2), "BANS", fill=_GRAY, font=label_font)
 
-    label_w = _text_width(draw, "BANS", label_font) + _MARGIN + 12
     center = _WIDTH // 2
 
     # Blue team bans (left of center)
@@ -660,14 +651,15 @@ def _render_player_row(
 
 def _render_team(
     img: Image.Image, draw: ImageDraw.Draw, y: int,
-    players: list[MatchParticipant], result: str,
+    details: MatchDetails, result: str,
     accent: tuple, dark: tuple,
     row_bg: tuple, row_hl: tuple,
     tracked: tuple[int, int] | None, team_idx: int,
     game_mvp: tuple[int, int] | None,
 ) -> int:
     """Render a full team section: header + columns + player rows."""
-    team_kda = f"{sum(p.kills for p in players)}/{sum(p.deaths for p in players)}/{sum(p.assists for p in players)}"
+    players = details.team1_players if team_idx == 0 else details.team2_players
+    team_kda = details.team1_kda if team_idx == 0 else details.team2_kda
     team_gold = sum(p.gold for p in players)
 
     y = _render_team_header(img, draw, y, "BLUE TEAM" if team_idx == 0 else "RED TEAM",
@@ -748,11 +740,11 @@ def render_scoreboard(
     # Render tracked player's team first so their result appears at top
     tracked_team = tracked[0] if tracked else 0
     if tracked_team == 0:
-        first_players, first_result, first_idx = details.team1_players, details.team1_result, 0
-        second_players, second_result, second_idx = details.team2_players, details.team2_result, 1
+        first_result, first_idx = details.team1_result, 0
+        second_result, second_idx = details.team2_result, 1
     else:
-        first_players, first_result, first_idx = details.team2_players, details.team2_result, 1
-        second_players, second_result, second_idx = details.team1_players, details.team1_result, 0
+        first_result, first_idx = details.team2_result, 1
+        second_result, second_idx = details.team1_result, 0
 
     first_accent = _BLUE_ACCENT if first_idx == 0 else _RED_ACCENT
     first_dark = _BLUE_DARK if first_idx == 0 else _RED_DARK
@@ -765,7 +757,7 @@ def render_scoreboard(
     second_hl = _ROW_BLUE_HL if second_idx == 0 else _ROW_RED_HL
 
     y = _render_team(
-        img, draw, y, first_players, first_result,
+        img, draw, y, details, first_result,
         first_accent, first_dark, first_row, first_hl,
         tracked, first_idx, game_mvp,
     )
@@ -773,7 +765,7 @@ def render_scoreboard(
     y += _TEAM_GAP
 
     y = _render_team(
-        img, draw, y, second_players, second_result,
+        img, draw, y, details, second_result,
         second_accent, second_dark, second_row, second_hl,
         tracked, second_idx, game_mvp,
     )

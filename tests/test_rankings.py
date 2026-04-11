@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import patch
 from PIL import Image
 from src.rankings import render_power_rankings, compute_power_score

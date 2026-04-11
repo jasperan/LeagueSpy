@@ -22,6 +22,10 @@ def sample_match():
     return sample_match_result()
 
 
+def sample_match_scoreboard():
+    return sample_match_details()
+
+
 def sample_grouped_matches():
     return group_by_player(sample_summary_matches())
 

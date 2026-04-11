@@ -1,6 +1,6 @@
 """Tests for the daily summary scheduler boundary logic."""
 
-from datetime import datetime, time
+from datetime import datetime
 from src.bot import should_fire_summary
 
 
