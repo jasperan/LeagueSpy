@@ -290,7 +290,7 @@ assets/
 
 ## Offline Smoke Walkthrough
 
-If you want to validate the repo the way a README-reader would — without Discord credentials, Oracle, or a live vLLM server — run:
+If you want to validate the repo the way a README-reader would (without Discord credentials, Oracle, or a live vLLM server), run:
 
 ```bash
 ./scripts/readme_walkthrough.sh

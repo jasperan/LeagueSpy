@@ -33,3 +33,8 @@ REVIEW.md
 CODE_REVIEW.md
 SECURITY_REVIEW.md
 AUTOPILOT*.md
+dogfood-output/
+task_plan.md
+findings.md
+progress.md
+content/
