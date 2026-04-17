@@ -1,7 +1,6 @@
 import logging
 import asyncio
 import re
-from typing import List
 from datetime import datetime, timezone
 
 from playwright.async_api import async_playwright
@@ -196,9 +195,9 @@ class LeagueOfGraphsScraper:
             return {"in_game": False, "champion": None}
         return self.parse_in_game_status(html)
 
-    def parse_matches(self, html: str, summoner: SummonerConfig) -> List[MatchResult]:
+    def parse_matches(self, html: str, summoner: SummonerConfig) -> list[MatchResult]:
         rows = self._parse_rows(html)
-        matches: List[MatchResult] = []
+        matches: list[MatchResult] = []
 
         for row in rows:
             match_id = self._extract_match_id(row)
@@ -412,7 +411,7 @@ class LeagueOfGraphsScraper:
             return None
         return self.parse_match_details(html)
 
-    async def fetch_matches(self, summoner: SummonerConfig) -> List[MatchResult]:
+    async def fetch_matches(self, summoner: SummonerConfig) -> list[MatchResult]:
         """Fetch and parse matches for a single summoner (semaphore-limited).
 
         Returns matches in chronological order (oldest first) so the

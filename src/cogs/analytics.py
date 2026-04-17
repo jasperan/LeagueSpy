@@ -46,12 +46,9 @@ class AnalyticsCog(commands.Cog):
         embed.add_field(name="Perdedor", value=f"**{loser}**", inline=True)
         embed.add_field(name="Historico", value=f"{summoner_player} {a_total} - {b_total} {rival['player_name']}", inline=False)
 
-        channel = self.bot.get_channel(self.bot.channel_id)
+        channel = await self.bot.resolve_channel()
         if channel is None:
-            try:
-                channel = await self.bot.fetch_channel(self.bot.channel_id)
-            except Exception:
-                return
+            return
         await channel.send(embed=embed)
         logger.info("Rivalry: %s vs %s (match %s)", summoner_player, rival["player_name"], match_id)
 
@@ -77,9 +74,9 @@ class AnalyticsCog(commands.Cog):
             buf = BytesIO()
             img.save(buf, format="PNG")
             buf.seek(0)
-            channel = self.bot.get_channel(self.bot.channel_id)
+            channel = await self.bot.resolve_channel()
             if channel is None:
-                channel = await self.bot.fetch_channel(self.bot.channel_id)
+                return
             await channel.send(
                 content="**Power Rankings Semanal**",
                 file=discord.File(buf, filename="power_rankings.png"),

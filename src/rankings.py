@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from functools import lru_cache
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
+from src._render_helpers import load_bold_font
 from src.champion_icons import download_icon
 
 logger = logging.getLogger("leaguespy.rankings")
@@ -20,20 +20,6 @@ _GOLD = (254, 185, 56)
 _FRAME_WIDTH = 600
 _MARGIN = 30
 _ICON_SIZE = 36
-
-
-@lru_cache(maxsize=8)
-def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
 
 
 def compute_power_score(win_rate: float, avg_kda_ratio: float, games: int, max_games: int) -> float:
@@ -65,9 +51,9 @@ def render_power_rankings(players: list[dict]) -> Image.Image | None:
     img = Image.new("RGB", (_FRAME_WIDTH, frame_height), _BG_COLOR)
     draw = ImageDraw.Draw(img)
 
-    title_font = _load_font(22)
-    name_font = _load_font(18)
-    stats_font = _load_font(14)
+    title_font = load_bold_font(22)
+    name_font = load_bold_font(18)
+    stats_font = load_bold_font(14)
 
     draw.rectangle([0, 0, 5, frame_height], fill=_GOLD)
     draw.text((_MARGIN, _MARGIN), "POWER RANKINGS SEMANAL", fill=_GOLD, font=title_font)

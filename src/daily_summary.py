@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import logging
 from collections import Counter, defaultdict
-from functools import lru_cache
 from io import BytesIO
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
+from src._render_helpers import (
+    circular_icon,
+    load_bold_font,
+    load_regular_font,
+    rounded_rect,
+    text_width,
+)
 from src.champion_icons import download_icon, download_splash
 
 logger = logging.getLogger("leaguespy.summary")
@@ -45,66 +51,18 @@ _CARD_GAP = 6
 
 
 # ---------------------------------------------------------------------------
-# Fonts
+# Rendering helpers (shared via _render_helpers)
 # ---------------------------------------------------------------------------
-@lru_cache(maxsize=12)
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
+_font = load_bold_font
+_font_regular = load_regular_font
+_text_width = text_width
+_rounded_rect = rounded_rect
 
 
-@lru_cache(maxsize=12)
-def _font_regular(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-def _text_width(draw: ImageDraw.Draw, text: str, font) -> int:
-    bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[2] - bbox[0]
-
-
-def _rounded_rect(draw: ImageDraw.Draw, xy, radius, fill):
-    try:
-        draw.rounded_rectangle(xy, radius=radius, fill=fill)
-    except AttributeError:
-        draw.rectangle(xy, fill=fill)
-
-
-def _circular_icon(icon: Image.Image, size: int, border_color: tuple, border_w: int = 2) -> Image.Image:
-    """Create a circular icon with a colored border ring."""
-    total = size + border_w * 2
-    canvas = Image.new("RGBA", (total, total), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(canvas)
-    draw.ellipse([0, 0, total - 1, total - 1], fill=border_color)
-    draw.ellipse(
-        [border_w - 1, border_w - 1, total - border_w, total - border_w],
-        fill=_BG,
-    )
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
-    icon_resized = icon.resize((size, size), Image.LANCZOS).convert("RGBA")
-    canvas.paste(icon_resized, (border_w, border_w), mask)
-    return canvas
+def _circular_icon(
+    icon: Image.Image, size: int, border_color: tuple, border_w: int = 2
+) -> Image.Image:
+    return circular_icon(icon, size, border_color, _BG, border_w=border_w)
 
 
 def _make_win_rate_ring(size: int, win_rate: float) -> Image.Image:

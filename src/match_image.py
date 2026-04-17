@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from io import BytesIO
-from functools import lru_cache
 
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+from PIL import Image, ImageDraw, ImageEnhance
 
+from src._render_helpers import load_bold_font, load_regular_font, rounded_rect, text_width
 from src.champion_icons import download_icon, download_splash
 from src.models import MatchDetails, MatchParticipant
 
@@ -80,53 +80,19 @@ _COL_MVP = 740
 
 
 # ---------------------------------------------------------------------------
-# Fonts
+# Rendering helpers (shared via _render_helpers)
 # ---------------------------------------------------------------------------
-@lru_cache(maxsize=12)
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
+_font = load_bold_font
+_font_regular = load_regular_font
+_rounded_rect = rounded_rect
 
 
-@lru_cache(maxsize=12)
-def _font_regular(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 def _rank_color(rank_str: str) -> tuple:
-    """Get the tier color for a rank string like 'Diamond II'."""
     rank_lower = rank_str.lower() if rank_str else ""
     for tier, color in _RANK_COLORS.items():
         if tier in rank_lower:
             return color
     return _GRAY
-
-
-def _rounded_rect(draw: ImageDraw.Draw, xy, radius, fill):
-    try:
-        draw.rounded_rectangle(xy, radius=radius, fill=fill)
-    except AttributeError:
-        draw.rectangle(xy, fill=fill)
 
 
 def _make_gradient(width: int, height: int, color_left: tuple, color_right: tuple) -> Image.Image:
@@ -182,9 +148,7 @@ def _ban_icon_overlay(icon: Image.Image, size: int = 24) -> Image.Image:
     return darkened
 
 
-def _text_width(draw: ImageDraw.Draw, text: str, font) -> int:
-    bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[2] - bbox[0]
+_text_width = text_width
 
 
 def _find_tracked_player(

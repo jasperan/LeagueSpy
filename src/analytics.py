@@ -1,15 +1,6 @@
 """Analytics computations for LeagueSpy."""
 
-import re
-
-
-def _parse_duration_minutes(duration: str) -> float:
-    """Parse '19min 48s' or '32min 1s' into total minutes."""
-    m = re.search(r'(\d+)min', duration)
-    s = re.search(r'(\d+)s', duration)
-    minutes = int(m.group(1)) if m else 0
-    seconds = int(s.group(1)) if s else 0
-    return minutes + seconds / 60
+from src.commentary import parse_duration_minutes as _parse_duration_minutes
 
 
 def compute_tilt_score(streak: int, recent_matches: list[dict]) -> int:

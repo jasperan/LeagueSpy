@@ -39,12 +39,9 @@ class LiveCog(commands.Cog):
                 embed.add_field(name="Champion", value=status["champion"], inline=True)
                 embed.set_thumbnail(url=get_icon_url(status["champion"]))
 
-            channel = self.bot.get_channel(self.bot.channel_id)
+            channel = await self.bot.resolve_channel()
             if channel is None:
-                try:
-                    channel = await self.bot.fetch_channel(self.bot.channel_id)
-                except Exception:
-                    return
+                return
             await channel.send(embed=embed)
             logger.info("%s started a game (%s)", summoner.player_name, status.get("champion"))
 

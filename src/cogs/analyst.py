@@ -106,12 +106,9 @@ class AnalystCog(commands.Cog, name="AnalystCog"):
                 if not analysis:
                     continue
 
-                channel = self.bot.get_channel(self.bot.channel_id)
+                channel = await self.bot.resolve_channel()
                 if channel is None:
-                    try:
-                        channel = await self.bot.fetch_channel(self.bot.channel_id)
-                    except Exception:
-                        continue
+                    continue
 
                 color = discord.Colour.green() if match.win else discord.Colour.red()
                 embed = discord.Embed(

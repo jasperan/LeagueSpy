@@ -16,6 +16,7 @@ def mock_bot():
     bot.wait_until_ready = AsyncMock()
     bot.get_channel = MagicMock(return_value=AsyncMock())
     bot.fetch_channel = AsyncMock(return_value=AsyncMock())
+    bot.resolve_channel = AsyncMock(return_value=AsyncMock())
     return bot
 
 
@@ -37,6 +38,7 @@ async def test_detects_new_game(mock_bot):
 
     channel = AsyncMock()
     mock_bot.get_channel.return_value = channel
+    mock_bot.resolve_channel = AsyncMock(return_value=channel)
 
     await cog._check_summoner(s, 1)
 
@@ -56,6 +58,7 @@ async def test_no_alert_if_already_live(mock_bot):
 
     channel = AsyncMock()
     mock_bot.get_channel.return_value = channel
+    mock_bot.resolve_channel = AsyncMock(return_value=channel)
 
     await cog._check_summoner(s, 1)
 

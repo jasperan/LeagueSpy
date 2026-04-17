@@ -114,12 +114,9 @@ class RoastCog(commands.Cog):
             if not roast:
                 continue
 
-            channel = self.bot.get_channel(self.bot.channel_id)
+            channel = await self.bot.resolve_channel()
             if channel is None:
-                try:
-                    channel = await self.bot.fetch_channel(self.bot.channel_id)
-                except Exception:
-                    continue
+                continue
 
             await channel.send(roast)
             self.bot.db.store_roast(db_id, match.match_id, roast, trigger)

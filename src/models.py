@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
 from urllib.parse import quote
 
 
@@ -31,12 +30,12 @@ class MatchParticipant:
 
 @dataclass
 class MatchDetails:
-    team1_players: list
-    team2_players: list
+    team1_players: list[MatchParticipant]
+    team2_players: list[MatchParticipant]
     team1_result: str
     team2_result: str
-    team1_bans: list
-    team2_bans: list
+    team1_bans: list[str]
+    team2_bans: list[str]
 
     @property
     def team1_kda(self) -> str:
@@ -75,12 +74,12 @@ class MatchResult:
     game_duration: str
     game_mode: str
     played_at: str
-    match_url: Optional[str] = None
+    match_url: str | None = None
     cs: int = 0
     gold: int = 0
     kill_participation: int = 0
     vision_score: int = 0
-    details: Optional[MatchDetails] = None
+    details: MatchDetails | None = field(default=None)
 
     @property
     def kda(self) -> str:

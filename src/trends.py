@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import logging
 from io import BytesIO
-from functools import lru_cache
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
+from src._render_helpers import load_bold_font, load_regular_font, text_width
 from src.champion_icons import download_icon
 
 logger = logging.getLogger("leaguespy.trends")
@@ -47,40 +47,9 @@ _HEATMAP_SQ = 14
 _HEATMAP_GAP = 3
 
 
-# ---------------------------------------------------------------------------
-# Fonts
-# ---------------------------------------------------------------------------
-@lru_cache(maxsize=12)
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
-
-
-@lru_cache(maxsize=12)
-def _font_regular(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
-    ]:
-        try:
-            return ImageFont.truetype(path, size)
-        except (OSError, IOError):
-            continue
-    return ImageFont.load_default()
-
-
-def _text_width(draw: ImageDraw.Draw, text: str, font) -> int:
-    bbox = draw.textbbox((0, 0), text, font=font)
-    return bbox[2] - bbox[0]
+_font = load_bold_font
+_font_regular = load_regular_font
+_text_width = text_width
 
 
 # ---------------------------------------------------------------------------

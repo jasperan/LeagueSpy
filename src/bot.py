@@ -83,6 +83,17 @@ class LeagueSpyBot(commands.Bot):
         self._madrid_tz = ZoneInfo("Europe/Madrid")
         self._last_summary_check = datetime.now(self._madrid_tz)
 
+    async def resolve_channel(self):
+        """Return the announcement channel, fetching via REST if not in cache."""
+        channel = self.get_channel(self.channel_id)
+        if channel is not None:
+            return channel
+        try:
+            return await self.fetch_channel(self.channel_id)
+        except Exception as exc:
+            logger.warning("Channel %d not reachable: %s", self.channel_id, exc)
+            return None
+
     async def on_ready(self):
         logger.info("LeagueSpy bot logged in as %s", self.user)
         logger.info("Tracking %d summoner(s)", len(self.summoners))
@@ -147,13 +158,9 @@ class LeagueSpyBot(commands.Bot):
     async def check_matches(self):
         t0 = time.monotonic()
         logger.info("Checking for new matches across %d summoner(s)...", len(self.summoners))
-        channel = self.get_channel(self.channel_id)
+        channel = await self.resolve_channel()
         if channel is None:
-            try:
-                channel = await self.fetch_channel(self.channel_id)
-            except Exception as e:
-                logger.error("Channel %d not found: %s", self.channel_id, e)
-                return
+            return
 
         # Scrape all summoners in parallel (concurrency limited inside scraper)
         async def scrape_one(summoner):
@@ -267,9 +274,9 @@ class LeagueSpyBot(commands.Bot):
                 return
 
             img_buf, filename = result
-            channel = self.get_channel(self.channel_id)
+            channel = await self.resolve_channel()
             if channel is None:
-                channel = await self.fetch_channel(self.channel_id)
+                return
 
             await channel.send(
                 content="**Daily Match Summary**",
