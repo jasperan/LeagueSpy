@@ -31,6 +31,7 @@ def test_generate_demo_writes_expected_artifacts(tmp_path, monkeypatch):
         "scoreboard.png",
         "solo_card.png",
         "leaguespy_summary.png",
+        "daily_awards.txt",
         "animated_leaguespy_summary.gif",
         "trends.png",
         "power_rankings.png",

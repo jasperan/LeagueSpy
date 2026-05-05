@@ -11,7 +11,7 @@
 [![vLLM](https://img.shields.io/badge/vLLM-Qwen3.5:9B-orange.svg?style=for-the-badge)](https://docs.vllm.ai/)
 [![Pillow](https://img.shields.io/badge/Pillow-GIF_rendering-ff6f00.svg?style=for-the-badge)](https://python-pillow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-261_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-274_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
 
 </div>
 
@@ -62,7 +62,8 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 - **Stealth scraping** via Playwright with bot-detection evasion (spoofed navigator, cookie consent handling, concurrent tab pool)
 - **Champion icon thumbnails** on every match embed, pulled from Riot's [Data Dragon CDN](https://developer.riotgames.com/docs/lol#data-dragon)
 - **Rich Discord embeds** with champion, KDA, win/loss, game mode, duration, and profile link
-- **Daily summary image/GIF** sent at midnight Madrid time, with per-player cards for the last 24 hours plus auto-posted trend charts for active players
+- **Interactive match cards** with one-click Ask, Roast, Analyze, Trends, and Profile actions on every announcement
+- **Daily summary image/GIF** sent at midnight Madrid time, with per-player cards, social awards, and auto-posted trend charts for active players
 - **Multi-account tracking** for players with multiple summoner accounts (smurfs)
 - **Oracle Database** storage for match history and deduplication
 - **Configurable polling** interval (default: 5 minutes)
@@ -77,9 +78,11 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 
 ### Slash Commands (v2)
 - `/spy add <slug> <name> [region]` -- add a summoner to tracking without editing config
+- `/spy setup` -- open a guided Discord form to add a summoner
 - `/spy remove <slug>` -- stop tracking a summoner
 - `/spy stats [player]` -- on-demand stats card (W/L, streak, KDA, tilt score)
 - `/spy leaderboard` -- group rankings sorted by win rate (min 10 games)
+- `/spy roster` -- show tracked players, summoner slugs, regions, and profile links
 - `/spy roast <player>` -- on-demand LLM roast using recent match history
 - `/spy champions <player>` -- champion mastery breakdown (top 10, win rates, avg KDA)
 - `/spy trends <player>` -- performance chart over recent games
@@ -87,6 +90,8 @@ PROJECT_DIR=/opt/leaguespy curl -fsSL https://raw.githubusercontent.com/jasperan
 - `/spy health` -- runtime health snapshot for the browser, DB, LLM config, and tracked players
 - `/spy help` -- in-Discord command reference
 - `/spy h2h <player1> <player2>` -- head-to-head record with last 5 encounters
+
+Player and summoner arguments autocomplete from the currently tracked roster, so users do not need to memorize exact names or slugs.
 
 ### Analytics (v2)
 - **Tilt score** (0-100): composite metric from loss streak, KDA decay, death rate, and surrender frequency. Shown in `/spy stats` and fed to the roast engine for maximum accuracy.
@@ -189,6 +194,7 @@ llm:
 features:
   roast: true
   analytics: true
+  match_actions: true
   live_alerts: true
   slash_commands: true
 
@@ -242,7 +248,7 @@ You can also add players at runtime with `/spy add <slug> <name> [region]` witho
 
 ![Pipeline Flow](assets/slides-flow.png)
 
-**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. Already-seen matches are skipped.
+**Match tracking:** Every 5 minutes, the bot scrapes each summoner's leagueofgraphs profile using a stealth Playwright browser (3 concurrent tabs). New match IDs get stored in Oracle DB and announced via Discord embed. Already-seen matches are skipped. When `features.match_actions` is enabled, each announcement also gets Discord buttons for Ask, Roast, Analyze, Trends, and Profile so the group can keep interacting with a match after it posts.
 
 **Roast engine:** After each match announcement, the roast cog checks the result. Losses trigger a Spanish roast via vLLM + Qwen3.5:9B. The roast intensity scales with the player's current loss streak and tilt score. Perfect KDA games get backhanded compliments. The LLM receives the last 5 roasts for that player so it doesn't repeat itself.
 
@@ -250,7 +256,7 @@ You can also add players at runtime with `/spy add <slug> <name> [region]` witho
 
 **Rivalry detection:** When a new match is inserted, the bot checks if another tracked player shares the same match ID with the opposite win value. If so, a purple "RIVALIDAD DETECTADA" embed fires with the all-time head-to-head record.
 
-**Daily summary:** At midnight Madrid time, the bot queries all matches from the last 24 hours, groups them by player, renders a composite summary image (or GIF for larger groups), and sends it to the channel. Players with zero matches in the window are skipped.
+**Daily summary:** At midnight Madrid time, the bot queries all matches from the last 24 hours, groups them by player, renders a composite summary image (or GIF for larger groups), and sends it to the channel with deterministic awards like MVP, Tilt Watch, Cleanest Game, Grinder, and Vision Lead. Players with zero matches in the window are skipped.
 
 **Weekly power rankings:** Every Monday at 10:00 Madrid time, the bot computes a composite score (win rate, KDA, activity) for each player over the last 7 days and renders a ranked PNG. Crown emoji for #1, clown emoji for last place.
 
@@ -264,7 +270,9 @@ src/
   doctor.py          # Preflight checks for config, deps, Playwright, Oracle, and vLLM
   scraper.py         # leagueofgraphs scraper (Playwright stealth browser)
   database.py        # Oracle DB layer (oracledb) with 20+ query methods
+  awards.py          # Daily social awards from stored match data
   embeds.py          # Discord rich embed builder with champion thumbnails
+  match_actions.py   # Interactive Ask/Roast/Analyze/Trends/Profile buttons for match cards
   models.py          # Data models (SummonerConfig, MatchResult)
   champion_icons.py  # Riot DDragon CDN icon resolution and caching
   daily_summary.py   # Daily summary image/GIF renderer (Pillow)
@@ -299,7 +307,7 @@ If you want to validate the repo the way a README-reader would (without Discord 
 That will:
 
 1. Run `python -m src.cli doctor --config config.example.yaml --offline`
-2. Generate offline showcase artifacts (scoreboard, summary image, trend chart, rankings, sample announcement JSON)
+2. Generate offline showcase artifacts (scoreboard, summary image, daily awards, trend chart, rankings, sample announcement JSON with action metadata)
 3. Run the full pytest suite
 
 You can also run the showcase directly:
@@ -314,7 +322,7 @@ python -m src.cli showcase --output-dir /tmp/leaguespy-showcase
 pytest tests/ -v
 ```
 
-261 tests covering the scraper, database, embeds, champion icons, summary rendering, scheduler logic, config validation, bot CLI checks, preflight doctor, showcase generation, demo wrappers, vLLM client, roast engine, slash commands, tilt score, power rankings, analytics cog, and live game alerts.
+274 tests covering the scraper, database, embeds, interactive match actions, daily awards, champion icons, summary rendering, scheduler logic, config validation, bot CLI checks, preflight doctor, showcase generation, demo wrappers, vLLM client, roast engine, slash commands, setup modal flow, slash command autocomplete, roster display, tilt score, power rankings, analytics cog, and live game alerts.
 
 ## License
 

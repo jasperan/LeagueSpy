@@ -23,6 +23,7 @@ features:
   analyst: true
   live_alerts: true
   slash_commands: true
+  match_actions: true  # attach Ask/Roast/Analyze/Trends buttons to match announcements
 
 players:
   - name: "jasper"

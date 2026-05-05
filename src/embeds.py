@@ -8,6 +8,7 @@ def build_match_announcement(
     match: MatchResult,
     commentary: str | None = None,
     scoreboard_image: bytes | None = None,
+    view: discord.ui.View | None = None,
 ) -> dict:
     if match.win:
         color = discord.Colour.green()
@@ -36,4 +37,6 @@ def build_match_announcement(
         payload["content"] = commentary
     if scoreboard_image:
         payload["file"] = discord.File(io.BytesIO(scoreboard_image), filename="scoreboard.png")
+    if view is not None:
+        payload["view"] = view
     return payload

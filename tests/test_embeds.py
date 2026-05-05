@@ -80,3 +80,9 @@ def test_footer_shows_played_at():
 def test_embed_links_to_profile():
     payload = build_match_announcement(_make_summoner(), _make_match())
     assert "leagueofgraphs.com" in payload["embed"].url
+
+
+def test_optional_view_is_attached_to_payload():
+    view = object()
+    payload = build_match_announcement(_make_summoner(), _make_match(), view=view)
+    assert payload["view"] is view

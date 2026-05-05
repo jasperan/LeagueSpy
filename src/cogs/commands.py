@@ -10,11 +10,105 @@ from src.models import SummonerConfig
 logger = logging.getLogger("leaguespy.commands")
 
 
+def _matching_choices(values: list[str], current: str) -> list[app_commands.Choice[str]]:
+    needle = current.lower().strip()
+    choices = []
+    seen = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        if needle and needle not in value.lower():
+            continue
+        choices.append(app_commands.Choice(name=value[:100], value=value[:100]))
+        if len(choices) >= 25:
+            break
+    return choices
+
+
+async def player_name_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Suggest tracked player display names for slash commands."""
+    summoners = getattr(getattr(interaction, "client", None), "summoners", [])
+    names = sorted({summoner.player_name for summoner in summoners})
+    return _matching_choices(names, current)
+
+
+async def summoner_slug_autocomplete(
+    interaction: discord.Interaction,
+    current: str,
+) -> list[app_commands.Choice[str]]:
+    """Suggest tracked summoner slugs for removal."""
+    summoners = getattr(getattr(interaction, "client", None), "summoners", [])
+    slugs = sorted({summoner.slug for summoner in summoners})
+    return _matching_choices(slugs, current)
+
+
+class AddSummonerModal(discord.ui.Modal, title="Add LeagueSpy Summoner"):
+    """Modal form used by /spy setup to add one tracked summoner."""
+
+    player_name = discord.ui.TextInput(
+        label="Player name",
+        placeholder="jasper",
+        max_length=80,
+    )
+    slug = discord.ui.TextInput(
+        label="LeagueOfGraphs slug",
+        placeholder="jasper-1971",
+        max_length=120,
+    )
+    region = discord.ui.TextInput(
+        label="Region",
+        placeholder="euw",
+        default="euw",
+        max_length=12,
+    )
+
+    def __init__(self, cog: "SpyCog"):
+        super().__init__()
+        self.cog = cog
+
+    async def on_submit(self, interaction: discord.Interaction):
+        added, message = self.cog._add_summoner_to_tracking(
+            slug=str(self.slug.value),
+            player_name=str(self.player_name.value),
+            region=str(self.region.value),
+        )
+        await interaction.response.send_message(message, ephemeral=True)
+        if added:
+            logger.info("Added summoner %s (%s) via setup modal", self.player_name.value, self.slug.value)
+
+
 class SpyCog(commands.Cog):
     """Slash commands under the /spy group."""
 
     def __init__(self, bot):
         self.bot = bot
+
+    def _default_region(self) -> str:
+        return self.bot.config.get("scraping", {}).get("region", "euw")
+
+    def _add_summoner_to_tracking(self, slug: str, player_name: str, region: str | None) -> tuple[bool, str]:
+        slug = slug.strip()
+        player_name = player_name.strip()
+        region = (region or self._default_region()).strip().lower()
+
+        if not slug or not player_name:
+            return False, "Player name y slug son obligatorios."
+        if not region:
+            region = self._default_region()
+
+        existing = self.bot.db.get_summoner_id_by_slug(slug)
+        if existing:
+            return False, f"**{slug}** ya esta siendo rastreado."
+
+        db_id = self.bot.db.get_or_create_summoner(player_name, slug, region)
+        summoner = SummonerConfig(player_name=player_name, slug=slug, region=region)
+        self.bot.summoners.append(summoner)
+        self.bot.summoner_db_ids[slug] = db_id
+        return True, f"Rastreando a **{player_name}** ({slug}) en {region.upper()}."
 
     def _runtime_health_snapshot(self) -> list[tuple[str, str]]:
         tracked_players = len({s.player_name for s in self.bot.summoners})
@@ -54,23 +148,18 @@ class SpyCog(commands.Cog):
     @spy.command(name="add", description="Add a summoner to tracking")
     @app_commands.describe(slug="Summoner URL slug", player_name="Display name", region="Region (default: config)")
     async def _add_summoner(self, interaction: discord.Interaction, slug: str, player_name: str, region: str = None):
-        if region is None:
-            region = self.bot.config.get("scraping", {}).get("region", "euw")
-        existing = self.bot.db.get_summoner_id_by_slug(slug)
-        if existing:
-            await interaction.response.send_message(f"**{slug}** ya esta siendo rastreado.", ephemeral=True)
-            return
-        db_id = self.bot.db.get_or_create_summoner(player_name, slug, region)
-        summoner = SummonerConfig(player_name=player_name, slug=slug, region=region)
-        self.bot.summoners.append(summoner)
-        self.bot.summoner_db_ids[slug] = db_id
-        await interaction.response.send_message(
-            f"Rastreando a **{player_name}** ({slug}) en {region.upper()}.", ephemeral=True,
-        )
-        logger.info("Added summoner %s (%s) via slash command", player_name, slug)
+        added, message = self._add_summoner_to_tracking(slug, player_name, region)
+        await interaction.response.send_message(message, ephemeral=True)
+        if added:
+            logger.info("Added summoner %s (%s) via slash command", player_name, slug)
+
+    @spy.command(name="setup", description="Open a guided form to add a tracked summoner")
+    async def _setup(self, interaction: discord.Interaction):
+        await interaction.response.send_modal(AddSummonerModal(self))
 
     @spy.command(name="remove", description="Stop tracking a summoner")
     @app_commands.describe(slug="Summoner URL slug to remove")
+    @app_commands.autocomplete(slug=summoner_slug_autocomplete)
     async def _remove_summoner(self, interaction: discord.Interaction, slug: str):
         db_id = self.bot.db.get_summoner_id_by_slug(slug)
         if not db_id:
@@ -84,6 +173,7 @@ class SpyCog(commands.Cog):
 
     @spy.command(name="stats", description="Show player stats")
     @app_commands.describe(player="Player name")
+    @app_commands.autocomplete(player=player_name_autocomplete)
     async def _stats(self, interaction: discord.Interaction, player: str = None):
         await interaction.response.defer()
         if player:
@@ -148,8 +238,37 @@ class SpyCog(commands.Cog):
             )
         await interaction.followup.send(embed=embed)
 
+    @spy.command(name="roster", description="Show tracked players and summoners")
+    async def _roster(self, interaction: discord.Interaction):
+        tracked = getattr(self.bot, "summoners", [])
+        if not tracked:
+            await interaction.response.send_message("No hay jugadores rastreados todavia.", ephemeral=True)
+            return
+
+        grouped: dict[str, list[SummonerConfig]] = {}
+        for summoner in tracked:
+            grouped.setdefault(summoner.player_name, []).append(summoner)
+
+        embed = discord.Embed(
+            title="LeagueSpy Roster",
+            description=f"{len(grouped)} player(s), {len(tracked)} summoner(s) tracked.",
+            colour=discord.Colour.blue(),
+        )
+        for player_name in sorted(grouped):
+            lines = [
+                f"[{summoner.slug}]({summoner.profile_url}) - {summoner.region.upper()}"
+                for summoner in sorted(grouped[player_name], key=lambda item: item.slug)
+            ]
+            value = "\n".join(lines)
+            if len(value) > 1024:
+                value = value[:1020] + "..."
+            embed.add_field(name=player_name, value=value, inline=False)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
     @spy.command(name="roast", description="Roast a player on demand")
     @app_commands.describe(player="Player name to roast")
+    @app_commands.autocomplete(player=player_name_autocomplete)
     async def _roast_cmd(self, interaction: discord.Interaction, player: str):
         await interaction.response.defer()
         ids = self.bot.db.get_all_summoner_ids_for_player(player)
@@ -187,6 +306,7 @@ class SpyCog(commands.Cog):
 
     @spy.command(name="champions", description="Champion mastery breakdown")
     @app_commands.describe(player="Player name")
+    @app_commands.autocomplete(player=player_name_autocomplete)
     async def _champions(self, interaction: discord.Interaction, player: str):
         await interaction.response.defer()
         ids = self.bot.db.get_all_summoner_ids_for_player(player)
@@ -211,6 +331,7 @@ class SpyCog(commands.Cog):
 
     @spy.command(name="trends", description="Performance trend chart")
     @app_commands.describe(player="Player name")
+    @app_commands.autocomplete(player=player_name_autocomplete)
     async def _trends(self, interaction: discord.Interaction, player: str):
         await interaction.response.defer()
         ids = self.bot.db.get_all_summoner_ids_for_player(player)
@@ -266,6 +387,11 @@ class SpyCog(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/spy setup",
+            value="Open a guided Discord form to add a summoner.",
+            inline=False,
+        )
+        embed.add_field(
             name="/spy remove <slug>",
             value="Stop tracking a summoner.",
             inline=False,
@@ -278,6 +404,11 @@ class SpyCog(commands.Cog):
         embed.add_field(
             name="/spy leaderboard",
             value="Group rankings by win rate (min 10 games).",
+            inline=False,
+        )
+        embed.add_field(
+            name="/spy roster",
+            value="Show tracked players, summoner slugs, regions, and profile links.",
             inline=False,
         )
         embed.add_field(
@@ -331,6 +462,7 @@ class SpyCog(commands.Cog):
 
     @spy.command(name="h2h", description="Head-to-head record")
     @app_commands.describe(player1="First player", player2="Second player")
+    @app_commands.autocomplete(player1=player_name_autocomplete, player2=player_name_autocomplete)
     async def _h2h(self, interaction: discord.Interaction, player1: str, player2: str):
         await interaction.response.defer()
         ids_a = self.bot.db.get_all_summoner_ids_for_player(player1)

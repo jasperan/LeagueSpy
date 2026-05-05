@@ -18,9 +18,11 @@ from src.config import (
 )
 from src.database import Database
 from src.scraper import LeagueOfGraphsScraper
+from src.awards import compute_daily_awards, format_daily_awards
 from src.embeds import build_match_announcement
 from src.commentary import build_commentary
 from src.match_image import render_scoreboard, render_solo_card
+from src.match_actions import build_match_action_view
 from src.daily_summary import group_by_player, build_summary_image
 from src.trends import render_trends_chart
 
@@ -217,7 +219,16 @@ class LeagueSpyBot(commands.Bot):
                                 kill_participation=match.kill_participation,
                                 vision_score=match.vision_score,
                             )
-                        payload = build_match_announcement(summoner, match, commentary, scoreboard_img)
+                        action_view = None
+                        if self.features.get("match_actions", True):
+                            action_view = build_match_action_view(self, summoner, match, db_id=db_id)
+                        payload = build_match_announcement(
+                            summoner,
+                            match,
+                            commentary,
+                            scoreboard_img,
+                            view=action_view,
+                        )
                         await channel.send(**payload)
                         self.db.insert_match(db_id, match)
                         self.db.mark_announced(db_id, match.match_id)
@@ -278,8 +289,13 @@ class LeagueSpyBot(commands.Bot):
             if channel is None:
                 return
 
+            summary_content = "**Daily Match Summary**"
+            awards = format_daily_awards(compute_daily_awards(matches))
+            if awards:
+                summary_content = f"{summary_content}\n\n{awards}"
+
             await channel.send(
-                content="**Daily Match Summary**",
+                content=summary_content,
                 file=discord.File(img_buf, filename=filename),
             )
             logger.info("Summary sent as %s (%d players, %d matches)", filename, len(grouped), len(matches))

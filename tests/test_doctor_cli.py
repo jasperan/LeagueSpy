@@ -88,7 +88,7 @@ def test_generate_showcase_writes_artifacts(monkeypatch, tmp_path):
 
     manifest = generate_showcase(tmp_path)
 
-    expected_keys = {"scoreboard", "solo_card", "summary", "animated_summary", "trends", "power_rankings", "announcement", "announcement_text", "readme", "manifest"}
+    expected_keys = {"scoreboard", "solo_card", "summary", "daily_awards", "animated_summary", "trends", "power_rankings", "announcement", "announcement_text", "readme", "manifest"}
     assert set(manifest) == expected_keys
     for artifact in manifest.values():
         assert Path(artifact).exists()
@@ -96,6 +96,8 @@ def test_generate_showcase_writes_artifacts(monkeypatch, tmp_path):
     announcement = json.loads((tmp_path / "announcement.json").read_text(encoding="utf-8"))
     assert announcement["embed"]["title"].startswith("🟢 VICTORY")
     assert announcement["has_file"] is True
+    assert [action["label"] for action in announcement["actions"]] == ["Ask", "Roast", "Analyze", "Trends", "Profile"]
+    assert "Daily Awards" in (tmp_path / "daily_awards.txt").read_text(encoding="utf-8")
 
 
 def test_cli_doctor_json_output(monkeypatch, tmp_path, capsys):

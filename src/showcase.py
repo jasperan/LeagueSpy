@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.awards import compute_daily_awards, format_daily_awards
 from src.commentary import build_result_line
 from src.daily_summary import build_summary_image, group_by_player
 from src.embeds import build_match_announcement
+from src.match_actions import describe_match_actions
 from src.match_image import render_scoreboard, render_solo_card
 from src.rankings import render_power_rankings
 from src.sample_data import (
@@ -60,6 +62,12 @@ def generate_showcase(output_dir: str | Path) -> dict[str, str]:
         summary_buf, summary_name = summary
         artifacts["summary"] = str(_write_bytes(output_dir / summary_name, summary_buf.getvalue()))
 
+    awards_text = format_daily_awards(compute_daily_awards(summary_matches))
+    if awards_text:
+        awards_path = output_dir / "daily_awards.txt"
+        awards_path.write_text(awards_text + "\n", encoding="utf-8")
+        artifacts["daily_awards"] = str(awards_path)
+
     animated_summary = build_summary_image(group_by_player(sample_animated_summary_matches()))
     if animated_summary:
         animated_buf, _animated_name = animated_summary
@@ -91,6 +99,7 @@ def generate_showcase(output_dir: str | Path) -> dict[str, str]:
                 "content": payload.get("content"),
                 "embed": payload["embed"].to_dict(),
                 "has_file": "file" in payload,
+                "actions": describe_match_actions(SAMPLE_SUMMONER, match),
             },
             indent=2,
             ensure_ascii=False,
