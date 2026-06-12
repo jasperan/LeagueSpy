@@ -266,46 +266,17 @@ class LeagueOfGraphsScraper:
 
         return (kills, deaths, assists, cs, gold, kp, vision)
 
-    def _parse_player_left(self, row: str) -> MatchParticipant | None:
-        """Parse the left (team1) player from a playerRow."""
-        # Extract left summoner column
-        col = re.search(r'<td[^>]*text-left[^>]*summoner_column[^>]*>(.*?)</td>', row, re.DOTALL)
-        if not col:
-            return None
+    def _parse_player(self, row: str, side: int) -> MatchParticipant | None:
+        """Parse a player from a playerRow.
 
-        col_html = col.group(1)
-        name_m = re.search(r'<div class="name">\s*([^<]+?)\s*</div>', col_html)
-        champ_m = re.search(r'alt="([^"]+)"', col_html)
-        rank_m = re.search(r'subname[^>]*>.*?<i[^>]*>\s*(.*?)\s*</i>', col_html, re.DOTALL)
-
-        summoner_name = name_m.group(1).strip() if name_m else "Unknown"
-        champion = champ_m.group(1) if champ_m else "Unknown"
-        rank = rank_m.group(1).strip() if rank_m else "Unranked"
-
-        # First kdaColumn in the row is for team1 (left)
-        kda_cols = list(re.finditer(r'<td[^>]*kdaColumn[^>]*>(.*?)</td>', row, re.DOTALL))
-        if not kda_cols:
-            return None
-
-        kills, deaths, assists, cs, gold, kp, vision = self._parse_kda_stats(kda_cols[0].group(1))
-
-        return MatchParticipant(
-            summoner_name=summoner_name,
-            rank=rank,
-            champion=champion,
-            kills=kills,
-            deaths=deaths,
-            assists=assists,
-            cs=cs,
-            gold=gold,
-            kill_participation=kp,
-            vision_score=vision,
+        ``side`` selects the team: 0 = left (team1), 1 = right (team2). The two
+        sides differ only in the summoner-column alignment class and which
+        ``kdaColumn`` holds their stats.
+        """
+        align = ("text-left", "text-right")[side]
+        col = re.search(
+            rf'<td[^>]*{align}[^>]*summoner_column[^>]*>(.*?)</td>', row, re.DOTALL
         )
-
-    def _parse_player_right(self, row: str) -> MatchParticipant | None:
-        """Parse the right (team2) player from a playerRow."""
-        # Extract right summoner column
-        col = re.search(r'<td[^>]*text-right[^>]*summoner_column[^>]*>(.*?)</td>', row, re.DOTALL)
         if not col:
             return None
 
@@ -318,12 +289,14 @@ class LeagueOfGraphsScraper:
         champion = champ_m.group(1) if champ_m else "Unknown"
         rank = rank_m.group(1).strip() if rank_m else "Unranked"
 
-        # Second kdaColumn in the row is for team2 (right)
+        # kdaColumn index `side` holds this team's stats.
         kda_cols = list(re.finditer(r'<td[^>]*kdaColumn[^>]*>(.*?)</td>', row, re.DOTALL))
-        if len(kda_cols) < 2:
+        if len(kda_cols) <= side:
             return None
 
-        kills, deaths, assists, cs, gold, kp, vision = self._parse_kda_stats(kda_cols[1].group(1))
+        kills, deaths, assists, cs, gold, kp, vision = self._parse_kda_stats(
+            kda_cols[side].group(1)
+        )
 
         return MatchParticipant(
             summoner_name=summoner_name,
@@ -368,11 +341,11 @@ class LeagueOfGraphsScraper:
             # Wrap back in <tr> so TD patterns work consistently
             row = f"<tr>{row_content}</tr>"
 
-            left = self._parse_player_left(row)
+            left = self._parse_player(row, 0)
             if left:
                 team1_players.append(left)
 
-            right = self._parse_player_right(row)
+            right = self._parse_player(row, 1)
             if right:
                 team2_players.append(right)
 

@@ -337,11 +337,8 @@ class LeagueSpyBot(commands.Bot):
 
     def _enrich_match_from_details(self, match, summoner, details):
         """Copy enhanced stats from match details into the MatchResult."""
-        parts = summoner.slug.rsplit("-", 1)
-        slug_as_name = (parts[0] + "#" + parts[1]).lower() if len(parts) == 2 else summoner.slug.lower()
         for player in details.team1_players + details.team2_players:
-            player_name_clean = player.summoner_name.lower().replace(" ", "")
-            if player_name_clean == slug_as_name.replace(" ", ""):
+            if summoner.matches_name(player.summoner_name):
                 match.cs = player.cs
                 match.gold = player.gold
                 match.kill_participation = player.kill_participation

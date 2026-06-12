@@ -1,4 +1,11 @@
-from src.models import SummonerConfig, MatchResult, MatchParticipant, MatchDetails
+from src.models import (
+    SummonerConfig,
+    MatchResult,
+    MatchParticipant,
+    MatchDetails,
+    slug_to_riot_name,
+    slug_matches_name,
+)
 
 
 def test_summoner_config_creation():
@@ -7,6 +14,35 @@ def test_summoner_config_creation():
     assert s.slug == "jasper-1971"
     assert s.region == "euw"
     assert s.profile_url == "https://www.leagueofgraphs.com/summoner/euw/jasper-1971"
+
+
+# --- slug <-> Riot name reconstruction ---
+
+def test_slug_to_riot_name_splits_on_final_dash():
+    assert slug_to_riot_name("jasper-1971") == "jasper#1971"
+
+
+def test_slug_to_riot_name_keeps_internal_dashes():
+    assert slug_to_riot_name("my-player-tag") == "my-player#tag"
+
+
+def test_slug_to_riot_name_lowercases_and_strips_spaces():
+    assert slug_to_riot_name("Big Name-TAG") == "bigname#tag"
+
+
+def test_slug_to_riot_name_without_dash():
+    assert slug_to_riot_name("solo") == "solo"
+
+
+def test_slug_matches_name_ignores_case_and_spaces():
+    assert slug_matches_name("jasper-1971", "Jasper #1971") is True
+    assert slug_matches_name("jasper-1971", "someoneelse#0000") is False
+
+
+def test_summoner_config_matches_name():
+    s = SummonerConfig(player_name="jasper", slug="jasper-1971", region="euw")
+    assert s.matches_name("jasper #1971") is True
+    assert s.matches_name("notjasper#0000") is False
 
 
 def test_match_result_creation():

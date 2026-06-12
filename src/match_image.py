@@ -9,7 +9,7 @@ from PIL import Image, ImageDraw, ImageEnhance
 
 from src._render_helpers import load_bold_font, load_regular_font, rounded_rect, text_width
 from src.champion_icons import download_icon, download_splash
-from src.models import MatchDetails, MatchParticipant
+from src.models import MatchDetails, MatchParticipant, slug_matches_name
 
 logger = logging.getLogger("leaguespy.match_image")
 
@@ -155,11 +155,9 @@ def _find_tracked_player(
     details: MatchDetails, summoner_slug: str,
 ) -> tuple[int, int] | None:
     """Return (team_index, player_index) for the tracked player."""
-    parts = summoner_slug.rsplit("-", 1)
-    slug_as_name = (parts[0] + "#" + parts[1]).lower() if len(parts) == 2 else summoner_slug.lower()
     for team_idx, players in enumerate([details.team1_players, details.team2_players]):
         for p_idx, p in enumerate(players):
-            if p.summoner_name.lower().replace(" ", "") == slug_as_name.replace(" ", ""):
+            if slug_matches_name(summoner_slug, p.summoner_name):
                 return (team_idx, p_idx)
     return None
 

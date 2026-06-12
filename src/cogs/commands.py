@@ -147,7 +147,7 @@ class SpyCog(commands.Cog):
 
     @spy.command(name="add", description="Add a summoner to tracking")
     @app_commands.describe(slug="Summoner URL slug", player_name="Display name", region="Region (default: config)")
-    async def _add_summoner(self, interaction: discord.Interaction, slug: str, player_name: str, region: str = None):
+    async def _add_summoner(self, interaction: discord.Interaction, slug: str, player_name: str, region: str | None = None):
         added, message = self._add_summoner_to_tracking(slug, player_name, region)
         await interaction.response.send_message(message, ephemeral=True)
         if added:
@@ -174,7 +174,7 @@ class SpyCog(commands.Cog):
     @spy.command(name="stats", description="Show player stats")
     @app_commands.describe(player="Player name")
     @app_commands.autocomplete(player=player_name_autocomplete)
-    async def _stats(self, interaction: discord.Interaction, player: str = None):
+    async def _stats(self, interaction: discord.Interaction, player: str | None = None):
         await interaction.response.defer()
         if player:
             ids = self.bot.db.get_all_summoner_ids_for_player(player)

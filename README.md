@@ -11,7 +11,7 @@
 [![vLLM](https://img.shields.io/badge/vLLM-Qwen3.5:9B-orange.svg?style=for-the-badge)](https://docs.vllm.ai/)
 [![Pillow](https://img.shields.io/badge/Pillow-GIF_rendering-ff6f00.svg?style=for-the-badge)](https://python-pillow.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-274_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
+[![Tests](https://img.shields.io/badge/tests-280_passing-brightgreen.svg?style=for-the-badge)](#running-tests)
 
 </div>
 
@@ -112,7 +112,7 @@ Green sidebar for wins. Red for losses. Each embed shows the champion icon and l
 ## Prerequisites
 
 - Python 3.12+
-- [Conda](https://docs.conda.io/) (recommended) or virtualenv
+- [uv](https://docs.astral.sh/uv/) (recommended), or Conda / virtualenv
 - [vLLM](https://docs.vllm.ai/) serving Qwen3.5:9B (for the roast engine; optional, bot works without it)
 - Oracle Database (Free tier works fine)
 - Discord bot token ([create one here](https://discord.com/developers/applications))
@@ -120,6 +120,19 @@ Green sidebar for wins. Red for losses. Each embed shows the champion icon and l
 ## Manual Setup
 
 **1. Clone and create environment**
+
+The repo ships a `pyproject.toml`, `uv.lock`, and `.python-version`, so [uv](https://docs.astral.sh/uv/) is the fastest way to get a reproducible environment:
+
+```bash
+git clone https://github.com/jasperan/LeagueSpy.git
+cd LeagueSpy
+uv sync
+uv run playwright install chromium
+```
+
+With uv, prefix the run/test commands below with `uv run` (e.g. `uv run python -m src.bot --config config.yaml`).
+
+<details><summary>Prefer Conda?</summary>
 
 ```bash
 git clone https://github.com/jasperan/LeagueSpy.git
@@ -130,7 +143,9 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 
-<details><summary>No Conda? Use a virtualenv instead</summary>
+</details>
+
+<details><summary>Prefer a plain virtualenv?</summary>
 
 ```bash
 git clone https://github.com/jasperan/LeagueSpy.git
@@ -151,6 +166,7 @@ Create the `leaguespy` user in your Oracle instance, then run the schema:
 ```bash
 sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/setup_db.sql
 sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/migrate_v2.sql
+sqlplus leaguespy/leaguespy@localhost:1523/FREEPDB1 @scripts/migrate_v3.sql
 ```
 
 **3. Start vLLM (optional, for roast engine)**
@@ -290,7 +306,8 @@ scripts/
   readme_walkthrough.sh  # README-style smoke run: doctor + showcase + full pytest
   setup_db.sql       # Oracle schema v1 (sequences + tables)
   migrate_v2.sql     # v2 migration (streaks, live_games, roast_history)
-tests/               # 261 unit and integration tests
+  migrate_v3.sql     # v3 migration
+tests/               # 280 unit and integration tests
 assets/
   visual-explainer.html  # Interactive architecture diagram
   slides.html            # Presentation deck
@@ -319,10 +336,10 @@ python -m src.cli showcase --output-dir /tmp/leaguespy-showcase
 ## Running Tests
 
 ```bash
-pytest tests/ -v
+uv run pytest tests/ -v   # or: pytest tests/ -v
 ```
 
-274 tests covering the scraper, database, embeds, interactive match actions, daily awards, champion icons, summary rendering, scheduler logic, config validation, bot CLI checks, preflight doctor, showcase generation, demo wrappers, vLLM client, roast engine, slash commands, setup modal flow, slash command autocomplete, roster display, tilt score, power rankings, analytics cog, and live game alerts.
+280 tests covering the scraper, database, embeds, interactive match actions, daily awards, champion icons, summary rendering, scheduler logic, config validation, bot CLI checks, preflight doctor, showcase generation, demo wrappers, vLLM client, roast engine, slash commands, setup modal flow, slash command autocomplete, roster display, tilt score, power rankings, analytics cog, and live game alerts.
 
 ## License
 
